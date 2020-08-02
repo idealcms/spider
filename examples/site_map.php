@@ -1,9 +1,9 @@
 <?php
 // @codingStandardsIgnoreFile
 return array(
-    'pageroot' => "", // Корневая папка сайта на диске (только если скрипт без этого не работает) | Ideal_Text
+    'site_root' => stream_resolve_include_path(__DIR__ . '/..'), // Корневая папка сайта на диске (только если скрипт без этого не работает) | Ideal_Text
     'website' => "http://example.com", // Сайт для сканирования | Ideal_Text
-    'sitemap_file' => "/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
+    'sitemap_file' => "/public_html/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
     'script_timeout' => "60", // Максимальное время выполнения скрипта (секунды) | Ideal_Text
     'load_timeout' => "10", // Максимальное время ожидания получения одного URL (секунды) | Ideal_Text
     'recording' => "0.5", // Минимальное время на запись в промежуточный файл (секунды) | Ideal_Text

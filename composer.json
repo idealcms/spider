@@ -2,7 +2,6 @@
     "name": "idealcms/sitemap",
     "description": "Скрипт для сбора xml-карты сайта (sitemap.xml)",
     "homepage": "https://github.com/idealcms/sitemap",
-    "license": "LGPL-3.0",
     "authors": [
         {
             "name": "Paul Nikitin",
@@ -15,9 +14,14 @@
     "license": "LGPL-3.0",
     "autoload": {
         "psr-4": {
-            "Ideal\\": "src/"
+            "Ideal\\Sitemap\\": "src/"
         }
     },
 
-    "require": {}
+    "require": {
+        "ext-curl": "*",
+        "ext-iconv": "*",
+        "ext-mbstring": "*",
+        "ext-json": "*"
+    }
 }

@@ -20,9 +20,11 @@
  * http://example.com/super/Ideal/Library/sitemap/index.php?w=1
  *
  */
-require_once __DIR__ . '/Crawler.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
-$crawler = new SiteMap\Crawler();
+$params = include 'site_map.php';
+
+$crawler = new Ideal\Sitemap\Crawler($params);
 
 if ($crawler->ob) {
     ob_start();
