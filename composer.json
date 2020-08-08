@@ -1,12 +1,12 @@
 {
-    "name": "idealcms/sitemap",
-    "description": "Скрипт для сбора xml-карты сайта (sitemap.xml)",
-    "homepage": "https://github.com/idealcms/sitemap",
+    "name": "idealcms/spider",
+    "description": "Скрипт для обхода сайта по внутренним ссылкам и построения xml-карты сайта",
+    "homepage": "https://github.com/idealcms/spider",
     "authors": [
         {
             "name": "Paul Nikitin",
             "email": "top@neox.ru",
-            "homepage": "http://idealcms.ru/",
+            "homepage": "https://idealcms.ru/",
             "role": "Developer"
         }
     ],
@@ -14,7 +14,7 @@
     "license": "LGPL-3.0",
     "autoload": {
         "psr-4": {
-            "Ideal\\Sitemap\\": "src/"
+            "Ideal\\Spider\\": "src/"
         }
     },
 

@@ -1,11 +1,21 @@
 <?php
+/**
+ * Ideal CMS SiteSpider (https://idealcms.ru/)
+ * @link      https://github.com/idealcms/idealcms репозиторий исходного кода
+ * @copyright Copyright (c) 2012-2020 Ideal CMS (https://idealcms.ru)
+ * @license   https://idealcms.ru/license.html LGPL v3
+ */
 
-
-namespace Ideal\Sitemap;
+namespace Ideal\Spider;
 
 
 use RuntimeException;
 
+/**
+ * Получение и анализ страницы на ссылки
+ *
+ * @package Ideal\Spider
+ */
 class Url
 {
     /** @var string Ссылка из мета-тега base, если он есть на странице */
@@ -36,6 +46,20 @@ class Url
      */
     public function getUrl($k, $place)
     {
+        /**
+         * // handle lastmod
+         * $res['lastmod'] = $lastmod;
+         *
+         * // format timestamp appropriate to settings
+         * if ($res['lastmod'] != '') {
+         * if ($this->config['time_format'] == 'short') {
+         * $res['lastmod'] = $this->getDateTimeISO_short($res['lastmod']);
+         * } else {
+         * $res['lastmod'] = $this->getDateTimeISO($res['lastmod']);
+         * }
+         * }
+         */
+
         // Проверяем, не является ли файл тем, в котором не нужно искать ссылки
         $ext = strtolower(pathinfo($k, PATHINFO_EXTENSION));
         if (in_array($ext, array('xls', 'xlsx', 'pdf', 'doc', 'docx'))) {
@@ -240,13 +264,13 @@ class Url
      * @param string $text html-код для парсинга
      * @return array
      */
-    protected function getLinksFromText($text)
+    public function getLinksFromText($text)
     {
         // Получаем содержимое всех тегов <a>
         preg_match_all('/<a (.*)>/isU', $text, $urls);
 
         if (empty($urls[1])) {
-            return array();
+            return [];
         }
 
         // Выдёргиваем атрибуты
@@ -280,33 +304,136 @@ class Url
         }
 
         if (empty($links)) {
-            $links = array();
+            $links = [];
         }
 
         return $links;
     }
 
     /**
-     * Парсинг ссылок из области радара
+     * Метод для удаления ненужных GET параметров и якорей из ссылки
      *
-     * @param string $content Обрабатываемая страницы
-     * @return array Список полученных ссылок с количеством упоминания их в области радара
+     * @param string $url Обрабатываемая ссылка
+     * @param $disallowKeys
+     * @return string Возвращается ссылка без лишних GET параметров и якорей
      */
-    public function parseRadarLinks($content)
+    public function cutExcessGet($url, $disallowKeys)
     {
-        $radarLinks = [];
-        // Удаляем области контента не попадающие в радар
-        $content = preg_replace("/<!--start_content_off-->(.*)<!--end_content_off-->/iusU", '', $content);
+        $paramStart = strpos($url, '?');
+        // Если существуют GET параметры у ссылки - проверяем их
+        if ($paramStart !== false) {
+            foreach ($disallowKeys as $id => $key) {
+                if (empty($key)) {
+                    continue;
+                }
+                // Разбиваем ссылку на части
+                $link = parse_url($url);
 
-        // Получаем области контента попадающие в радар
-        preg_match_all("/<!--start_content-->(.*)<!--end_content-->/iusU", $content, $radarContent);
-        if ($radarContent && isset($radarContent[1]) && is_array($radarContent[1]) && !empty($radarContent[1])) {
-            foreach ($radarContent[1] as $radarContentPart) {
-                $radarLinks[] = $this->getLinksFromText($radarContentPart);
+                if (isset($link['query'])) {
+                    // Разбиваем параметры
+                    parse_str($link['query'], $parts);
+
+                    foreach ($parts as $k => $v) {
+                        // Если параметр есть в исключениях - удаляем его из массива
+                        if ($k === $key) {
+                            unset($parts[$k]);
+                        }
+                    }
+                    // Собираем оставшиеся параметры в строку
+                    $query = http_build_query($parts);
+                    // Заменяем GET параметры оставшимися
+                    $link['query'] = $query;
+
+                    $url = self::unparseUrl($link);
+                }
             }
-            $radarLinks = array_merge(...$radarLinks);
         }
-        $radarLinks = array_count_values($radarLinks);
-        return $radarLinks;
+        // Если в сслыке есть '#' якорь, то обрезаем его
+        if (strpos($url, '#') !== false) {
+            $url = substr($url, 0, strpos($url, '#'));
+        }
+        // Если последний символ в ссылке '&' - обрезаем его
+        while (substr($url, strlen($url) - 1) === "&") {
+            $url = rtrim($url, '&');
+        }
+        // Если последний символ в ссылке '?' - обрезаем его
+        while (substr($url, strlen($url) - 1) === "?") {
+            $url = rtrim($url, '?');
+        }
+        return $url;
+    }
+
+    /**
+     * Проверяем, нужно исключать этот URL или не надо
+     * @param $filename
+     * @param $disallowRegexp
+     * @return bool
+     */
+    public function skipUrl($filename, $disallowRegexp)
+    {
+        // Отрезаем доменную часть
+        $filename = substr($filename, strpos($filename, '/') + 1);
+
+        if (is_array($disallowRegexp) && count($disallowRegexp) > 0) {
+            // Проходимся по массиву регулярных выражений. Если array_reduce вернёт саму ссылку,
+            // то подходящего правила в disallow не нашлось и можно эту ссылку добавлять в карту сайта
+            $reduce = array_reduce(
+                $disallowRegexp,
+                static function ($res, $rule) {
+                    if ($res === 1 || preg_match($rule, $res)) {
+                        return 1;
+                    }
+                    return $res;
+                },
+                $filename
+            );
+            if ($filename !== $reduce) {
+                // Сработало одно из регулярных выражений, значит ссылку нужно исключить
+                return true;
+            }
+        }
+
+        // Ни одно из правил не сработало, значит страницу исключать не надо
+        return false;
+    }
+
+    /**
+     * Проверка является ли ссылка внешней
+     *
+     * @param string $link Проверяемая ссылка
+     * @param string $current Текущая страница с которой получена ссылка
+     * @param string $host Домен, на котором проводится проверка
+     * @return boolean true если ссылка внешняя, иначе false
+     */
+    public function isExternalLink($link, $current, $host)
+    {
+        // Если ссылка на приложение - пропускаем её
+        if (preg_match(',^(ftp://|mailto:|news:|javascript:|telnet:|callto:|tel:|skype:),i', $link)) {
+            return true;
+        }
+
+        if (strpos($link, 'http') !== 0 && strpos($link, '//') !== 0) {
+            // Если ссылка не начинается с http или '//', то она точно не внешняя, все варианты мы исключили
+            return false;
+        }
+
+        $url = parse_url($link);
+
+        // До 5.4.7 в path выводится весь адрес
+        if (!isset($url['host'])) {
+            list(, , $url['host']) = explode('/', $url);
+        }
+
+        if ($host === $url['host']) {
+            // Хост сайта и хост ссылки совпадают, значит она локальная
+            return false;
+        }
+
+        if (str_replace('www.', '', $host) === str_replace('www.', '', $url['host'])) {
+            // Хост сайта и хост ссылки не совпали, но с урезанием www совпали, значит неправильная ссылка
+            throw new RuntimeException("Неправильная абсолютная ссылка: {$link} на странице {$current}");
+        }
+
+        return true;
     }
 }
