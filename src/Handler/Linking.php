@@ -31,7 +31,6 @@ class Linking extends HandlerAbstract
     public function load()
     {
         $config = $this->crawler->getConfig();
-        $notify = $this->crawler->getNotify();
 
         if (empty($config['is_radar'])) {
             return;
@@ -39,19 +38,8 @@ class Linking extends HandlerAbstract
 
         $tmpRadarFile = $config['site_root'] . $config['tmp_radar_file'];
 
-        if (file_exists($tmpRadarFile)) {
-            if (!is_writable($tmpRadarFile)) {
-                $notify->stop("Временный файл {$tmpRadarFile} недоступен для записи!");
-            }
-        } elseif ((file_put_contents($tmpRadarFile, '') === false)) {
-            // Файла нет и создать его не удалось
-            $notify->stop("Не удалось создать временный файл {$tmpRadarFile}!");
-        } else {
-            unlink($tmpRadarFile);
-        }
-
         // Если существует файл хранения временных данных отчёта о перелинковке
-        if (file_exists($tmpRadarFile)) {
+        if ($this->checkTmpFile($tmpRadarFile)) {
             $arr = file_get_contents($tmpRadarFile);
             $this->radarLinks = unserialize($arr, ['allowed_classes' => false]);
         }
@@ -246,6 +234,4 @@ class Linking extends HandlerAbstract
         }
         unlink($config['site_root'] . $config['tmp_radar_file']);
     }
-
-
 }

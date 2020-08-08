@@ -151,8 +151,6 @@ class SiteMap extends HandlerAbstract
         if (file_exists($tmp)) {
             unlink($tmp);
         }
-
-        return $xmlFile;
     }
 
     /**

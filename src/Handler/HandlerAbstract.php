@@ -60,4 +60,29 @@ abstract class HandlerAbstract
      * @return void
      */
     abstract public function finish();
+
+    /**
+     * Проверка наличия временного файла или возможности его создать
+     *
+     * @param string $tmpFile Полный путь к временному файлу
+     * @return bool
+     */
+    protected function checkTmpFile($tmpFile)
+    {
+        $notify = $this->crawler->getNotify();
+
+        if (file_exists($tmpFile)) {
+            if (!is_writable($tmpFile)) {
+                $notify->stop("Временный файл {$tmpFile} недоступен для записи!");
+                return false;
+            }
+            return true;
+        }
+        if ((file_put_contents($tmpFile, '') === false)) {
+            // Файла нет и создать его не удалось
+            $notify->stop("Не удалось создать временный файл {$tmpFile}!");
+            return false;
+        }
+        return false;
+    }
 }

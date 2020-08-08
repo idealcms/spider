@@ -371,9 +371,6 @@ class Url
      */
     public function skipUrl($filename, $disallowRegexp)
     {
-        // Отрезаем доменную часть
-        $filename = substr($filename, strpos($filename, '/') + 1);
-
         if (is_array($disallowRegexp) && count($disallowRegexp) > 0) {
             // Проходимся по массиву регулярных выражений. Если array_reduce вернёт саму ссылку,
             // то подходящего правила в disallow не нашлось и можно эту ссылку добавлять в карту сайта

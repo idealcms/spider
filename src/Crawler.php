@@ -182,18 +182,21 @@ class Crawler
             'script_timeout' => 60,
             'load_timeout' => 10,
             'delay' => 1,
-            'old_sitemap' => '/images/map-old.part',
-            'tmp_file' => '/images/map.part',
-            'tmp_radar_file' => '/tmp/radar.part',
-            'old_radar_file' => '/tmp/radar-old.part',
+            'old_sitemap' => '/tmp/spider/sitemap-old.part',
+            'tmp_file' => '/tmp/spider/spider.part',
+            'tmp_radar_file' => '/tmp/spider/radar.part',
+            'old_radar_file' => '/tmp/spider/radar-old.part',
+            'tmp_imagemap_file' => '/tmp/spider/imagemap.part',
             'site_root' => '',
             'sitemap_file' => '/sitemap.xml',
+            'imagemap_file' => '/imagemap.xml',
             'crawler_url' => '/',
             'change_freq' => 'weekly',
             'priority' => 0.8,
             'time_format' => 'long',
             'disallow_key' => '',
             'disallow_regexp' => '',
+            'disallow_img_regexp' => '',
             'seo_urls' => '',
             'is_radar' => '1',
         );
@@ -206,6 +209,7 @@ class Crawler
         // Строим массивы для пропуска GET-параметров и URL по регулярным выражениям
         $this->config['disallow_key'] = explode("\n", $this->config['disallow_key']);
         $this->config['disallow_regexp'] = explode("\n", $this->config['disallow_regexp']);
+        $this->config['disallow_img_regexp'] = explode("\n", $this->config['disallow_img_regexp']);
 
         // Строим массив страниц с изменённым приоритетом
         $this->config['seo_urls'] = explode("\n", $this->config['seo_urls']);
