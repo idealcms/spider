@@ -1,7 +1,7 @@
 <?php
 // @codingStandardsIgnoreFile
 return array(
-    'site_root' => '/..', // Корневая папка сайта на диске (отсчитывается от папки скрипта) | Ideal_Text
+    'site_root' => '', // Корневая папка сайта на диске (задаётся при необходимости) | Ideal_Text
     'website' => "http://example.com", // Сайт для сканирования | Ideal_Text
     'sitemap_file' => "/examples/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
     'imagemap_file' => "/examples/imagemap.xml", // Файл для записи xml-карты сайта | Ideal_Text

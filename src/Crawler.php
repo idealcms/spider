@@ -166,15 +166,20 @@ class Crawler
         }
         $this->config['website'] = $tmp['scheme'] . '://' . $tmp['host'] . $tmp['path'];
 
+        // Вычисляем полный путь к корню сайта
         if (empty($this->config['site_root'])) {
             if (empty($_SERVER['DOCUMENT_ROOT'])) {
-                // Обнаружение корня сайта, если скрипт запускается из стандартного места в Ideal CMS
-                $self = $_SERVER['PHP_SELF'];
-                $path = substr($self, 0, strpos($self, 'Ideal') - 1);
-                $this->config['site_root'] = dirname($path);
+                // Обнаружение корня сайта, если скрипт запускается из стандартной папки vendor
+                if ($vendorPos = strpos(__DIR__, '/vendor')) {
+                    $this->config['site_root'] = substr(__DIR__, 0, $vendorPos);
+                } else {
+                    $this->notify->stop('Не могу определить корневую папку сайта, задайте её в настройках site_root');
+                }
             } else {
-                $this->config['site_root'] = $_SERVER['DOCUMENT_ROOT'];
+                $this->config['site_root'] = stream_resolve_include_path($_SERVER['DOCUMENT_ROOT'] . '/..');
             }
+        } else {
+            $this->config['site_root'] = stream_resolve_include_path($this->config['site_root']);
         }
 
         // Массив значений по умолчанию
@@ -205,9 +210,6 @@ class Crawler
                 $this->config[$key] = $value;
             }
         }
-
-        // Вычисляем полный путь к корню сайта
-        $this->config['site_root'] = stream_resolve_include_path(__DIR__ . $this->config['site_root']);
 
         // Строим массивы для пропуска GET-параметров и URL по регулярным выражениям
         $this->config['disallow_key'] = explode("\n", $this->config['disallow_key']);
