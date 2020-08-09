@@ -1,7 +1,7 @@
 <?php
 // @codingStandardsIgnoreFile
 return array(
-    'site_root' => stream_resolve_include_path(__DIR__ . '/..'), // Корневая папка сайта на диске (только если скрипт без этого не работает) | Ideal_Text
+    'site_root' => '/..', // Корневая папка сайта на диске (отсчитывается от папки скрипта) | Ideal_Text
     'website' => "http://example.com", // Сайт для сканирования | Ideal_Text
     'sitemap_file' => "/examples/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
     'imagemap_file' => "/examples/imagemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
@@ -21,7 +21,7 @@ return array(
     'time_format' => "long", // Формат отображения времени | Ideal_Select | {"long":"long","short":"short"}
     'disallow_regexp' => "/\.(xml|inc|txt|js|zip|bmp|jpg|jpeg|png|gif|css)$/i", // Регулярные выражения для файлов, которые не надо включать в карту сайта | Ideal_Area
     'disallow_key' => "sid\nPHPSESSID", // GET параметры, отбрасываемые при составлении карты сайта | Ideal_Area
-    'disallow_img_regexp' => "/\/imgs\/logo\.jpg/", // Картинки, которые не надо добавлять в карту изображений | Ideal_Area
+    'disallow_img_regexp' => "/\/i\//", // Картинки, которые не надо добавлять в карту изображений | Ideal_Area
     'seo_urls' => "http://example.com/promoted-page.html = 0.9", // Приоритет для продвигаемых ссылок | Ideal_Area
     'email_cron' => "", // Электронная почта для cron-сообщений | Ideal_Text
     'email_notify' => "", // Электронная почта для уведомления о добавленных/удалённых ссылках | Ideal_Text

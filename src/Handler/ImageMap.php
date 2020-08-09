@@ -84,9 +84,7 @@ class ImageMap extends HandlerAbstract
             // Сохранение данных о собранных картинках во временный файл
             $result = serialize($this->images);
             $tmpFile = $config['site_root'] . $config['tmp_imagemap_file'];
-            $fp = fopen($tmpFile, 'wb');
-            fwrite($fp, $result);
-            fclose($fp);
+            file_put_contents($tmpFile, $result);
         }
     }
 
@@ -101,7 +99,7 @@ class ImageMap extends HandlerAbstract
                 if (!empty($image['alt'])) {
                     $xml .= '<image:title>' . $image['alt'] . "</image:title>\n";
                 }
-                if (!empty($image['title'])) {
+                if (!empty($image['title']) && (empty($image['alt']) || $image['alt'] !== $image['title'])) {
                     $xml .= '<image:caption>' . $image['title'] . "</image:caption>\n";
                 }
                 $xml .= "</image:image>\n";

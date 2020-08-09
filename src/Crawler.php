@@ -206,6 +206,9 @@ class Crawler
             }
         }
 
+        // Вычисляем полный путь к корню сайта
+        $this->config['site_root'] = stream_resolve_include_path(__DIR__ . $this->config['site_root']);
+
         // Строим массивы для пропуска GET-параметров и URL по регулярным выражениям
         $this->config['disallow_key'] = explode("\n", $this->config['disallow_key']);
         $this->config['disallow_regexp'] = explode("\n", $this->config['disallow_regexp']);
@@ -356,17 +359,18 @@ class Crawler
 
         if (count($this->links) > 0) {
             $this->saveParsedUrls();
+
+            // Сохраняем промежуточные данные дополнительных обработчиков
+            foreach ($this->handlers as $handler) {
+                $handler->save();
+            }
+
             $message = "\nВыход по таймауту\n"
                 . 'Всего пройденных ссылок: ' . count($this->checked) . "\n"
                 . 'Всего непройденных ссылок: ' . count($this->links) . "\n"
                 . 'Затраченное время: ' . ($time - $this->start) . "\n\n"
                 . "Everything it's alright.\n\n";
             $this->notify->stop($message, false);
-
-            // Сохраняем промежуточные данные дополнительных обработчиков
-            foreach ($this->handlers as $handler) {
-                $handler->save();
-            }
         }
 
         if (count($this->checked) < 2) {
