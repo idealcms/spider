@@ -81,6 +81,12 @@ class Url
             throw new RuntimeException("Страница {$k} недоступна. Статус: {$info['http_code']}. Переход с {$place}");
         }
 
+        // Если произошёл редирект, не превышающий заданное кол-во редиректов,
+        // возвращаем адрес, на который идёт редирект
+        if ($info['redirect_count'] > 0) {
+            throw new \LogicException($info['url']);
+        }
+
         // Если страница имеет слишком малый вес прекращаем выполнение скрипта
         if ($info['size_download'] < 1024) {
             throw new RuntimeException("Страница {$k} пуста. Размер страницы: {$info['size_download']} байт. Переход с {$place}");
@@ -432,5 +438,17 @@ class Url
         }
 
         return true;
+    }
+
+    /**
+     * Установка максимального количества редиректов при получении страницы
+     *
+     * @param int $redirects Максимальное кол-во редиректов
+     */
+    public function setMaxRedirects($redirects)
+    {
+        $redirects = (int)$redirects;
+        $this->options[CURLOPT_FOLLOWLOCATION] = $redirects !== 0;
+        $this->options[CURLOPT_MAXREDIRS] = $redirects;
     }
 }

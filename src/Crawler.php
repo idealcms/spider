@@ -102,6 +102,9 @@ class Crawler
         // Установка максимального времени на загрузку страницы
         $this->urlModel->setLoadTimeout($this->config['load_timeout']);
 
+        // Установка максимального количества редиректов при считывании страницы
+        $this->urlModel->setMaxRedirects($this->config['redirects']);
+
         // Загружаем данные, собранные на предыдущих шагах работы скрипта
         $tmpFile = $this->getTmpFileName();
 
@@ -321,7 +324,12 @@ class Crawler
             // Получаем контент страницы
             try {
                 $content = $this->urlModel->getUrl($k, $this->links[$k]);
-            } catch (Exception $e) {
+            } catch (\LogicException $e) {
+                // Если этот адрес редиректит на другую страницу
+                $this->addLinks([$e->getMessage()], $this->links[$k]);
+                unset($this->links[$k]);
+                continue;
+            } catch (\Exception $e) {
                 // Если при разборе страницы произошла ошибка - сообщаем пользователю, но продолжаем сбор страниц
                 $this->warnings[] = $e->getMessage();
                 unset($this->links[$k]);
