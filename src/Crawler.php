@@ -54,8 +54,6 @@ class Crawler
     /** @var array Список предупреждений, формируемый при разборе страниц */
     protected $warnings = [];
 
-    protected $handlerNames = [Handler\SiteMap::class, Handler\ImageMap::class, Handler\Linking::class];
-
     protected $handlers;
 
     /**
@@ -121,8 +119,10 @@ class Crawler
         $this->external = empty($arr[2]) ? [] : $arr[2];
 
         // Инициализируем все обработчики страницы
-        foreach ($this->handlerNames as $handlerName) {
-            $handler = new $handlerName($this);
+        $handlers = explode(',', $this->config['handlers']);
+        foreach ($handlers as $handlerName) {
+            $className = 'Ideal\\Spider\\Handler\\' . trim($handlerName);
+            $handler = new $className($this);
             $handler->load();
             $this->handlers[$handlerName] = $handler;
         }
