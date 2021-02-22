@@ -59,6 +59,10 @@ class ImageMap extends HandlerAbstract
             foreach ($resultImg[1] as $k => $attr) {
                 $img[$attr] = trim($resultImg[2][$k], '"\'');
             }
+            // Проверяем, не является ли картинка data:image
+            if (mb_strpos($img['src'], 'data:image') === 0) {
+                continue;
+            }
             // Проверяем, находится ли картинка на сайте
             if ($urlModel->isExternalLink($img['src'], $url, $this->crawler->host)) {
                 continue; // внешние картинки в карту не добавляем
