@@ -53,7 +53,7 @@ class SiteMap extends HandlerAbstract
                 $notify->stop("Sitemap {$xmlFile} already created today! Everything it's alright.", false);
             } else {
                 // Если дата сегодняшняя, но запуск не из крона, то продолжаем работу над картой сайта
-                echo "Warning! File {$xmlFile} have current date and skip in cron";
+                echo "Warning! File {$xmlFile} have current date and skip in cron\n";
             }
         } else {
             // Если карта сайта в два раза старше указанного значения в поле
@@ -129,15 +129,15 @@ class SiteMap extends HandlerAbstract
                 }
                 $ret .= sprintf($priorityStr, $priority);
             }
-            $ret .= '</url>';
+            $ret .= "</url>\n";
         }
 
         $ret = /** @lang XML */
-            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
             . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
             . ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
             . ' xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9'
-            . ' https://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">'
+            . ' https://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">' . "\n"
             . "<!-- Last update of sitemap {$lastDate} -->\n"
             . $ret
             . '</urlset>';
