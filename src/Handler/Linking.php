@@ -230,7 +230,7 @@ class Linking extends HandlerAbstract
             if ($diffText) {
                 $radarLinksReport = "{$diffText}\n{$radarLinksReport}";
             }
-            $notify->sendEmail($radarLinksReport, '', '{{host}} - перелинковка');
+            $notify->sendEmail($radarLinksReport, '', $this->crawler->host . ' - перелинковка');
         }
         unlink($config['site_root'] . $config['tmp_radar_file']);
     }
