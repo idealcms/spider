@@ -101,7 +101,7 @@ class Url
 
         curl_close($ch);
 
-        $res = substr($res, $header_size); // вырезаем html код страницы
+        $res = mb_substr($res, $header_size); // вырезаем html код страницы
 
         return $res;
     }
@@ -250,8 +250,11 @@ class Url
             $this->base = $base[1];
         }
 
+        // Удаляем некорректные UTF-8 символы, которые могут быть из-за криворуких программистов
+        $tmpContent = mb_convert_encoding($content, 'UTF-8', 'UTF-8');;
+
         // Удаление js-кода
-        $tmpContent = (string)preg_replace("/<script(.*)<\/script>/iusU", '', $content);
+        $tmpContent = (string)preg_replace("/<script(.*)<\/script>/iusU", '', $tmpContent);
 
         // Если контент был не в utf-8, то пытаемся конвертировать в нужную кодировку и повторяем замену
         if (!$tmpContent && preg_last_error() === PREG_BAD_UTF8_ERROR) {
