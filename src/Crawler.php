@@ -108,15 +108,13 @@ class Crawler
 
         // Если существует файл хранения временных данных сканирования,
         // Данные разбиваются на 3 массива: пройденных, непройденных и внешних ссылок
-        $arr = [];
         if (file_exists($tmpFile)) {
             $arr = file_get_contents($tmpFile);
             $arr = unserialize($arr, ['allowed_classes' => false]);
+            $this->links = empty($arr[0]) ? [] : $arr[0];
+            $this->checked = empty($arr[1]) ? [] : $arr[1];
+            $this->external = empty($arr[2]) ? [] : $arr[2];
         }
-
-        $this->links = empty($arr[0]) ? [] : $arr[0];
-        $this->checked = empty($arr[1]) ? [] : $arr[1];
-        $this->external = empty($arr[2]) ? [] : $arr[2];
 
         // Инициализируем все обработчики страницы
         $handlers = explode(',', $this->config['handlers']);
@@ -137,6 +135,22 @@ class Crawler
         if ((count($this->links) === 0) && (count($this->checked) === 0)) {
             // Если это самое начало сканирования, добавляем в массив для сканирования первую ссылку
             $this->links[$this->config['website']] = 0;
+            // Проверяем, указан ли файл для безусловного добавления ссылок в карту сайта
+            if (!empty($this->config['add_urls_file'])) {
+                // Указан файл для безусловного добавления адресов
+                $fileName = $this->config['site_root'] . $this->config['add_urls_file'];
+                if (file_exists($fileName)) {
+                    $urls = [];
+                    $file = explode("\n", file_get_contents($fileName));
+                    foreach ($file as $line) {
+                        $cols = explode("\t", trim($line));
+                        $urls[] = trim($cols[0]);
+                    }
+                    $this->addLinks($urls, $fileName);
+                } else {
+                    $this->warnings[] = 'Осутствует указанный файл со ссылками для добавления ' . $fileName;
+                }
+            }
         }
     }
 
