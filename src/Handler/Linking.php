@@ -232,6 +232,9 @@ class Linking extends HandlerAbstract
             }
             $notify->sendEmail($radarLinksReport, '', $this->crawler->host . ' - перелинковка');
         }
-        unlink($config['site_root'] . $config['tmp_radar_file']);
+        $tmpRadar = $config['site_root'] . $config['tmp_radar_file'];
+        if (file_exists($tmpRadar)) {
+            unlink($tmpRadar);
+        }
     }
 }
