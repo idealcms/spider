@@ -1,6 +1,6 @@
 <?php
 // @codingStandardsIgnoreFile
-return array(
+return [
     'site_root' => '', // Корневая папка сайта на диске (задаётся при необходимости) | Ideal_Text
     'website' => "http://example.com", // Сайт для сканирования | Ideal_Text
     'sitemap_file' => "/examples/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
@@ -29,4 +29,4 @@ return array(
     'email_json' => "", // Электронная почта для уведомлений об изменениях в карте сайта (json-формат) | Ideal_Text
     'redirects' => "0", // Допустимое количество редиректов | Ideal_Text
     'handlers' => "SiteMap,ImageMap,Linking", // Виды обработок, которые надо проделать над сайтом | Ideal_Text
-);
+];
