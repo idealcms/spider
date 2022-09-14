@@ -260,6 +260,16 @@ class Crawler
         $tmpFile = $this->config['site_root'] . $this->config['tmp_file'];
         $tmpRadarFile = $this->config['site_root'] . $this->config['tmp_radar_file'];
 
+        $tmpDir = dirname($tmpFile);
+        if (!file_exists($tmpDir)) {
+            mkdir($tmpDir, 0777, true);
+        }
+
+        $tmpRadarDir = dirname($tmpRadarFile);
+        if (!file_exists($tmpRadarDir)) {
+            mkdir($tmpRadarDir, 0777, true);
+        }
+
         if (file_exists($tmpFile)) {
             if (!is_writable($tmpFile)) {
                 $this->notify->stop("Временный файл {$tmpFile} недоступен для записи!");
