@@ -33,9 +33,6 @@ class Crawler
     /** @var array Массив внешних ссылок */
     public $external = [];
 
-    /** @var bool Флаг необходимости кэширования echo/print */
-    public $ob = false;
-
     /** @var float Время начала работы скрипта */
     private $start;
 
@@ -63,26 +60,16 @@ class Crawler
      * @param array $config Настройки сбора карты сайта
      * @throws Exception
      */
-    public function __construct($config)
+    public function __construct($config, $isForce = false, $isClear = false, $isTest = false)
     {
         // Время начала работы скрипта
         $this->start = microtime(1);
 
-        // Буферизация вывода нужна только для отправки сообщений при запуске через cron
-        // При тестовых запусках вручную, скрипт обычно запускают из той же папки, где он лежит
-        // При запусках через cron, скрипт никогда не запускается из той же папки
-        $this->ob = !file_exists(basename($_SERVER['PHP_SELF']));
+        // Проверяем статус запуска - тестовый (без писем) или по расписанию (по умолчанию - cron)
+        $this->status = $isTest ? 'test' : 'cron';
 
-        // Проверяем статус запуска - тестовый или по расписанию (по умолчанию - cron)
-        $argv = !empty($_SERVER['argv']) ? $_SERVER['argv'] : [];
-        if (isset($_GET['w']) || (in_array('w', $argv, true))) {
-            // Если задан GET-параметр или ключ w в командной строке — это принудительный запуск,
-            // письма о нём слать не надо
-            $this->status = 'test';
-            $this->ob = false;
-        }
         // Проверяем необходимость сброса ранее собранных страниц
-        $this->clearTemp = isset($_GET['с']) || (in_array('с', $argv, true));
+        $this->clearTemp = $isClear;
         // Инициализируем модель для работы с html-страницей
         $this->urlModel = new Url();
         // Инициализируем объект для отправки сообщений
@@ -185,15 +172,11 @@ class Crawler
 
         // Вычисляем полный путь к корню сайта
         if (empty($this->config['site_root'])) {
-            if (empty($_SERVER['DOCUMENT_ROOT'])) {
-                // Обнаружение корня сайта, если скрипт запускается из стандартной папки vendor
-                if ($vendorPos = strpos(__DIR__, '/vendor')) {
-                    $this->config['site_root'] = substr(__DIR__, 0, $vendorPos);
-                } else {
-                    $this->notify->stop('Не могу определить корневую папку сайта, задайте её в настройках site_root');
-                }
+            // Обнаружение корня сайта, если скрипт запускается из стандартной папки vendor
+            if ($vendorPos = strpos(__DIR__, '/vendor')) {
+                $this->config['site_root'] = substr(__DIR__, 0, $vendorPos);
             } else {
-                $this->config['site_root'] = stream_resolve_include_path($_SERVER['DOCUMENT_ROOT'] . '/..');
+                $this->notify->stop('Не могу определить корневую папку сайта, задайте её в настройках site_root');
             }
         } else {
             $this->config['site_root'] = stream_resolve_include_path($this->config['site_root']);
