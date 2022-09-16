@@ -3,9 +3,9 @@
 return [
     'site_root' => '', // Корневая папка сайта на диске (задаётся при необходимости) | Ideal_Text
     'website' => "http://example.com", // Сайт для сканирования | Ideal_Text
-    'sitemap_file' => "/examples/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
-    'imagemap_file' => "/examples/imagemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
-    'add_urls_file' => "/examples/urls.tsv", // Tsv-файл с url-страниц, которые будут добавлены в карту, даже если на них нет ссылок на сайте | Ideal_Text
+    'sitemap_file' => "/public_html/sitemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
+    'imagemap_file' => "/public_html/imagemap.xml", // Файл для записи xml-карты сайта | Ideal_Text
+    'add_urls_file' => "/config/urls.tsv", // Tsv-файл с url-страниц, которые будут добавлены в карту, даже если на них нет ссылок на сайте | Ideal_Text
     'script_timeout' => "60", // Максимальное время выполнения скрипта (секунды) | Ideal_Text
     'load_timeout' => "10", // Максимальное время ожидания получения одного URL (секунды) | Ideal_Text
     'recording' => "0.5", // Минимальное время на запись в промежуточный файл (секунды) | Ideal_Text
