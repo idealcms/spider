@@ -19,9 +19,11 @@
     },
 
     "require": {
+        "php": ">=7.4",
         "ext-curl": "*",
         "ext-iconv": "*",
         "ext-mbstring": "*",
-        "ext-json": "*"
+        "ext-json": "*",
+        "idealcms/mailer": "*"
     }
 }

@@ -39,16 +39,15 @@ class Notify
      */
     public function sendEmail($text, $to = '', $subject = '')
     {
-        $header = "MIME-Version: 1.0\r\n"
-            . "Content-type: text/plain; charset=utf-8\r\n"
-            . 'From: sitemap@' . $this->host;
-
+        $from = 'sitemap@' . $this->host;
         $to = (empty($to)) ? $this->emailNotify : $to;
         $subject = (empty($subject)) ? $this->host . ' sitemap' : $subject;
 
         // Отправляем письма об изменениях
-        // print 'to: ' . $to . "\nsubj: " . $subject . "\ntext: " . $text . "\n";
-        mail($to, $subject, $text, $header);
+        $sender = new \Ideal\Mailer();
+        $sender->setHtmlBody($text);
+        $sender->setSubj($subject);
+        $sender->sent($from, $to);
     }
 
     /**
