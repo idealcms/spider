@@ -1,4 +1,4 @@
-# Ideal CMS SiteSpider v.7.0
+# Ideal CMS SiteSpider v.5.0
 
 Универсальный скрипт для обхода сайта по внутренним ссылкам. 
 
