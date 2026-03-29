@@ -21,8 +21,10 @@ abstract class HandlerAbstract
     /** @var Crawler Объект со всеми настройками паука и собранными данными */
     protected $crawler;
 
+    private array $trans = [];
+
     /**
-     * Инициализаия обработчика
+     * Инициализация обработчика
      *
      * @param Crawler $crawler
      */
@@ -81,8 +83,39 @@ abstract class HandlerAbstract
         if ((file_put_contents($tmpFile, '') === false)) {
             // Файла нет и создать его не удалось
             $notify->stop("Не удалось создать временный файл {$tmpFile}!");
-            return false;
         }
+
         return false;
+    }
+
+    /**
+     * Преобразования специальных символов для xml файла карты сайта в HTML сущности
+     *
+     * @param string $str Ссылка для обработки
+     *
+     * @return string Обработанная ссылка
+     */
+    public function xmlEscape($str)
+    {
+        // Возвращается ссылка, в которой символы &,",<,>  заменены на HTML сущности
+        return preg_replace(
+            "/&(?![A-Za-z]{0,4}\w{2,3};|#[0-9]{2,4};)/",
+            "&#38;",
+            strtr($str, $this->getTrans())
+        );
+    }
+
+    protected function getTrans(): array
+    {
+        if ($this->trans === []) {
+            $this->trans = get_html_translation_table(HTML_ENTITIES, ENT_QUOTES);
+            foreach ($this->trans as $key => $value) {
+                $this->trans[$key] = '&#' . ord($key) . ';';
+            }
+            // dont translate the '&' in case it is part of &xxx;
+            $this->trans[chr(38)] = '&amp;'; // chr(38) = '&'
+        }
+
+        return $this->trans;
     }
 }

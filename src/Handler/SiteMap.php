@@ -154,27 +154,6 @@ class SiteMap extends HandlerAbstract
     }
 
     /**
-     * Преобразования специальных символов для xml файла карты сайта в HTML сущности
-     *
-     * @param string $str Ссылка для обработки
-     * @return string Обработанная ссылка
-     */
-    public function xmlEscape($str)
-    {
-        $trans = [];
-        if (!isset($trans)) {
-            $trans = get_html_translation_table(HTML_ENTITIES, ENT_QUOTES);
-            foreach ($trans as $key => $value) {
-                $trans[$key] = '&#' . ord($key) . ';';
-            }
-            // dont translate the '&' in case it is part of &xxx;
-            $trans[chr(38)] = '&amp;'; // chr(38) = '&'
-        }
-        // Возвращается ссылка, в которой символы &,",<,>  заменены на HTML сущности
-        return preg_replace("/&(?![A-Za-z]{0,4}\w{2,3};|#[\d]{2,4};)/", "&#38;", strtr($str, $trans));
-    }
-
-    /**
      * Поиск изменений в новой карте сайта и отчёте о перелинковке, относительно предыдущего результата
      */
     protected function compare()

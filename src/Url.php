@@ -432,7 +432,12 @@ class Url
 
         // До 5.4.7 в path выводится весь адрес
         if (!isset($url['host'])) {
-            list(, , $url['host']) = explode('/', $url);
+            $lnk = explode('/', $url);
+            if (empty($lnk[2])) {
+                throw new \RuntimeException('Не удаётся разобрать ссылку: ' . $link . ' на странице '
+                    . $current . ' файл ' . __FILE__ . ' строка ' . __LINE__);
+            }
+            $url['host'] = $lnk[2];
         }
 
         if ($host === $url['host']) {
