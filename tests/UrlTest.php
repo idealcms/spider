@@ -54,9 +54,4 @@ class UrlTest extends TestCase
 
         $this->assertEquals('/about/news/?year=2009&amp;PAGEN_1=2', $result[0] ?? null);
     }
-
-//    protected function setUp(): void
-//    {
-//        parent::setUp();
-//    }
 }

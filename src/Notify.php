@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Ideal CMS SiteSpider (https://idealcms.ru/)
  * @link      https://github.com/idealcms/idealcms репозиторий исходного кода
@@ -20,7 +22,7 @@ use Symfony\Component\Mime\Email;
  */
 class Notify
 {
-    private Mailer $mailer;
+    private readonly Mailer $mailer;
 
     public function __construct(
 
@@ -35,7 +37,6 @@ class Notify
 
         /** @var null|string Адрес для отправки писем с json-данными */
         private readonly ?string $toJson = null,
-
     ) {
         $this->mailer = new Mailer(Transport::fromDsn($mailerDsn));
     }
@@ -82,8 +83,8 @@ class Notify
 
         try {
             $this->mailer->send($email);
-        } catch (\Throwable $e) {
-            throw new MailTransportException($e->getMessage(), $e->getCode(), $e);
+        } catch (\Throwable $throwable) {
+            throw new MailTransportException($throwable->getMessage(), $throwable->getCode(), $throwable);
         }
     }
 }

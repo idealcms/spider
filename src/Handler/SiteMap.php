@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Ideal CMS SiteSpider (https://idealcms.ru/)
  * @link      https://github.com/idealcms/idealcms репозиторий исходного кода
@@ -8,8 +10,6 @@
 
 namespace Ideal\Spider\Handler;
 
-
-use Exception;
 use Ideal\Spider\Exception\MailTransportException;
 
 /**
@@ -22,7 +22,7 @@ class SiteMap extends HandlerAbstract
     /**
      * Проверка наличия, доступности для записи и актуальности xml-файла карты сайта
      *
-     * @throws Exception
+     * @throws \Exception
      */
     public function load(): void
     {
@@ -35,10 +35,11 @@ class SiteMap extends HandlerAbstract
             if (!is_readable($xmlFile)) {
                 $this->crawler->stop("File $xmlFile is not readable!");
             }
+
             if (!is_writable($xmlFile)) {
                 $this->crawler->stop("File $xmlFile is not writable!");
             }
-        } else if ((file_put_contents($xmlFile, '') === false)) {
+        } elseif ((file_put_contents($xmlFile, '') === false)) {
             // Файла нет и создать его не удалось
             $this->crawler->stop("Couldn't create file $xmlFile!");
         } else {
@@ -118,19 +119,21 @@ class SiteMap extends HandlerAbstract
             if (isset($config['change_freq'])) {
                 $ret .= sprintf(
                     '<changefreq>%s</changefreq>',
-                    $config['change_freq']
+                    $config['change_freq'],
                 );
             }
+
             if (isset($config['priority'])) {
                 $priorityStr = sprintf('<priority>%s</priority>', '%01.1f');
                 $priority = $config['seo_urls'][$k] ?? $config['priority'];
                 $ret .= sprintf($priorityStr, $priority);
             }
+
             $ret .= "</url>\n";
         }
 
-        $ret = /** @lang XML */
-            '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+        $ret /** @lang XML */
+            = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
             . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
             . "<!-- Last update of sitemap $lastDate -->\n"
             . $ret
@@ -154,7 +157,7 @@ class SiteMap extends HandlerAbstract
     protected function compare(): void
     {
         $config = $this->crawler->getConfig();
-        
+
         // Карта сайта
         $file = $config['site_root'] . $config['old_sitemap'];
         [$oldUrl, $oldExternal] = file_exists($file)
@@ -166,11 +169,14 @@ class SiteMap extends HandlerAbstract
         $external = $this->crawler->external;
 
         // Сохраним новый массив ссылок, что бы в следующий раз взять его как старый
-        file_put_contents($file, serialize(array($new, $external)));
+        file_put_contents($file, serialize([$new, $external]));
 
         $text = '';
         $modifications = false;
-        $add = $del = $addExternal = $delExternal = [];
+        $add = [];
+        $del = [];
+        $addExternal = [];
+        $delExternal = [];
 
         if (empty($oldUrl)) {
             $modifications = true;
@@ -182,7 +188,7 @@ class SiteMap extends HandlerAbstract
         } else {
             // Находим добавленные страницы
             $add = array_diff_key($new, $oldUrl);
-            if (!empty($add)) {
+            if ($add !== []) {
                 $modifications = true;
                 $text .= "Добавлены ссылки\n";
                 foreach ($add as $k => $v) {
@@ -195,7 +201,7 @@ class SiteMap extends HandlerAbstract
 
             // Находим удаленные страницы
             $del = array_diff_key($oldUrl, $new);
-            if (!empty($del)) {
+            if ($del !== []) {
                 $modifications = true;
                 $text .= "Удалены ссылки \n";
                 foreach ($del as $k => $v) {
@@ -216,7 +222,7 @@ class SiteMap extends HandlerAbstract
         } else {
             // Определяем новые внешние ссылки
             $addExternal = array_diff_key($external, $oldExternal);
-            if (!empty($addExternal)) {
+            if ($addExternal !== []) {
                 $modifications = true;
                 $text .= "\nДобавлены внешние ссылки:\n";
                 foreach ($addExternal as $k => $v) {
@@ -227,7 +233,7 @@ class SiteMap extends HandlerAbstract
             }
 
             $delExternal = array_diff_key($oldExternal, $external);
-            if (!empty($delExternal)) {
+            if ($delExternal !== []) {
                 $modifications = true;
                 $text .= "\nУдалены внешние ссылки:\n";
                 foreach ($delExternal as $k => $v) {
@@ -242,12 +248,12 @@ class SiteMap extends HandlerAbstract
         $notify->sendEmail($this->crawler->host . ' sitemap', $text);
         if ($modifications && !empty($config['email_json'])) {
             // Формируем json формат данных для отправки на почту, хранящую информацию о работе карт сайта
-            $log = array(
+            $log = [
                 'add' => array_keys($add),
                 'del' => array_keys($del),
                 'add_external' => $addExternal,
                 'del_external' => $delExternal,
-            );
+            ];
             $notify->sendJsonEmail($this->crawler->host . ' sitemap result', json_encode($log, JSON_THROW_ON_ERROR));
         }
     }

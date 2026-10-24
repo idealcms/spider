@@ -26,12 +26,36 @@
         "symfony/mailer": "*"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.4"
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpunit/phpunit": "^13.4",
+        "rector/rector": "^2.7",
+        "squizlabs/php_codesniffer": "^4.0"
     },
     "config": {
         "sort-packages": true
     },
     "scripts": {
+        "analyze": [
+            "@cs",
+            "@phpcs",
+            "@phpstan",
+            "@rector",
+            "@tests"
+        ],
+        "cs": [
+            "vendor/bin/php-cs-fixer fix --dry-run --diff"
+        ],
+        "cs-fix": [
+            "vendor/bin/php-cs-fixer fix"
+        ],
+        "phpstan": "vendor/bin/phpstan analyze",
+        "rector": [
+            "vendor/bin/rector -n"
+        ],
+        "rector-fix": [
+            "vendor/bin/rector"
+        ],
+        "phpcs": "vendor/bin/phpcs",
         "tests": "vendor/bin/phpunit"
     }
 }

@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Ideal CMS SiteSpider (https://idealcms.ru/)
  * @link      https://github.com/idealcms/idealcms репозиторий исходного кода
@@ -18,18 +20,15 @@ use Ideal\Spider\Exception\MailTransportException;
  */
 abstract class HandlerAbstract
 {
-    /** @var Crawler Объект со всеми настройками паука и собранными данными */
-    protected Crawler $crawler;
-
     private array $trans = [];
 
     /**
      * Инициализация обработчика
      */
-    public function __construct(Crawler $crawler)
-    {
-        $this->crawler = $crawler;
-    }
+    public function __construct(
+        /** @var Crawler Объект со всеми настройками паука и собранными данными */
+        protected Crawler $crawler,
+    ) {}
 
     /**
      * Загрузка данных обработчика, сохранённых на предыдущем этапе работы скрипта
@@ -55,29 +54,6 @@ abstract class HandlerAbstract
     abstract public function finish(): void;
 
     /**
-     * Проверка наличия временного файла или возможности его создать
-     *
-     * @param string $tmpFile Полный путь к временному файлу
-     *
-     * @throws MailTransportException
-     */
-    protected function checkTmpFile(string $tmpFile): bool
-    {
-        if (file_exists($tmpFile)) {
-            if (!is_writable($tmpFile)) {
-                $this->crawler->stop("Временный файл $tmpFile недоступен для записи!");
-            }
-            return true;
-        }
-        if ((file_put_contents($tmpFile, '') === false)) {
-            // Файла нет и создать его не удалось
-            $this->crawler->stop("Не удалось создать временный файл $tmpFile!");
-        }
-
-        return false;
-    }
-
-    /**
      * Преобразования специальных символов для xml файла карты сайта в HTML сущности
      *
      * @param string $str Ссылка для обработки
@@ -90,8 +66,33 @@ abstract class HandlerAbstract
         return preg_replace(
             "/&(?![A-Za-z]{0,4}\w{2,3};|#\d{2,4};)/",
             "&#38;",
-            strtr($str, $this->getTrans())
+            strtr($str, $this->getTrans()),
         );
+    }
+
+    /**
+     * Проверка наличия временного файла или возможности его создать
+     *
+     * @param string $tmpFile Полный путь к временному файлу
+     *
+     * @throws MailTransportException
+     */
+    protected function checkTmpFile(string $tmpFile): bool
+    {
+        if (file_exists($tmpFile)) {
+            if (!is_writable($tmpFile)) {
+                $this->crawler->stop("Временный файл $tmpFile недоступен для записи!");
+            }
+
+            return true;
+        }
+
+        if ((file_put_contents($tmpFile, '') === false)) {
+            // Файла нет и создать его не удалось
+            $this->crawler->stop("Не удалось создать временный файл $tmpFile!");
+        }
+
+        return false;
     }
 
     protected function getTrans(): array
@@ -99,8 +100,9 @@ abstract class HandlerAbstract
         if ($this->trans === []) {
             $this->trans = get_html_translation_table(HTML_ENTITIES, ENT_QUOTES);
             foreach ($this->trans as $key => $value) {
-                $this->trans[$key] = '&#' . ord($key) . ';';
+                $this->trans[$key] = '&#' . ord($key[0]) . ';';
             }
+
             // don't translate the '&' in case it is part of &xxx;
             $this->trans[chr(38)] = '&amp;'; // chr(38) = '&'
         }

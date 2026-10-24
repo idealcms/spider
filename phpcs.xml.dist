@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/squizlabs/php_codesniffer/phpcs.xsd">
+
+    <arg name="basepath" value="."/>
+    <arg name="cache" value="var/.phpcs-cache"/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+
+    <config name="cache_file" value="var/.phpcs-cache"/>
+
+    <!-- Проверка регистра имен классов (PascalCase) -->
+    <rule ref="Squiz.Classes.ValidClassName"/>
+
+    <!-- Проверка регистра имен методов и функций (camelCase) -->
+    <rule ref="Squiz.NamingConventions.ValidFunctionName">
+        <exclude name="Squiz.NamingConventions.ValidFunctionName.PrivateNoUnderscore"/>
+    </rule>
+    <rule ref="PSR2.Methods.MethodDeclaration.Underscore"/>
+
+    <file>src/</file>
+    <file>tests/</file>
+
+</ruleset>

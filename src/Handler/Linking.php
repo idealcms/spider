@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Ideal CMS SiteSpider (https://idealcms.ru/)
  * @link      https://github.com/idealcms/idealcms репозиторий исходного кода
@@ -7,7 +9,6 @@
  */
 
 namespace Ideal\Spider\Handler;
-
 
 use Ideal\Spider\Exception\MailTransportException;
 use Ideal\Spider\Url;
@@ -23,6 +24,8 @@ use Ideal\Spider\Url;
  */
 class Linking extends HandlerAbstract
 {
+    public $config;
+
     /** @var array Массив ссылок из области отслеживаемой радаром с подсчётом количества */
     private array $radarLinks = [];
 
@@ -77,50 +80,6 @@ class Linking extends HandlerAbstract
     }
 
     /**
-     * Обработка полученных ссылок, добавление в массив отчёта о перелинковке
-     *
-     * @param array $radarLinks Массив ссылок на обработку
-     * @param string $current Текущая страница
-     */
-    private function addRadarLinks(array $radarLinks, string $current): void
-    {
-        $config = $this->crawler->getConfig();
-        $urlModel = new Url();
-
-        foreach ($radarLinks as $radarLink => $count) {
-            // Убираем анкоры без ссылок и js-код в ссылках
-            if (
-                str_starts_with($radarLink, '#')
-                || stripos($radarLink, 'javascript:') === 0
-            ) {
-                continue;
-            }
-
-            if ($urlModel->isExternalLink($radarLink, $current, $this->crawler->host)) {
-                // Пропускаем ссылки на другие сайты
-                continue;
-            }
-
-            // Абсолютизируем ссылку
-            $link = $urlModel->getAbsoluteUrl($config['website'], $radarLink, $current);
-
-            // Убираем лишние GET параметры из ссылки
-            $link = $urlModel->cutExcessGet($link, $config['disallow_key']);
-
-            if ($urlModel->skipUrl($link, $config['disallow_regexp'])) {
-                // Если ссылку не нужно добавлять, переходим к следующей
-                continue;
-            }
-
-            if (!isset($this->radarLinks[$link])) {
-                $this->radarLinks[$link] = $count;
-            } else {
-                $this->radarLinks[$link] += $count;
-            }
-        }
-    }
-
-    /**
      * Парсинг ссылок из области радара
      *
      * @param string $content Обрабатываемая страницы
@@ -136,10 +95,11 @@ class Linking extends HandlerAbstract
 
         // Получаем области контента попадающие в радар
         preg_match_all("/<!--start_content-->(.*)<!--end_content-->/iusU", $content, $radarContent);
-        if ($radarContent && isset($radarContent[1]) && is_array($radarContent[1])) {
+        if ($radarContent[1] !== []) {
             foreach ($radarContent[1] as $radarContentPart) {
                 $radarLinks[] = $urlModel->getLinksFromText($radarContentPart);
             }
+
             $radarLinks = array_merge(...$radarLinks);
         }
 
@@ -185,7 +145,7 @@ class Linking extends HandlerAbstract
             $newRadar = $this->radarLinks;
             // Проверяем, были ли добавлены новые ссылки в радарную область
             $add = array_diff_key($newRadar, $oldRadar);
-            if (!empty($add)) {
+            if ($add !== []) {
                 $modifications = true;
                 $diffText .= "Новые ссылки в области радара\n";
                 foreach ($add as $k => $v) {
@@ -193,32 +153,37 @@ class Linking extends HandlerAbstract
                     $diffText .= "$k - $v\n";
                 }
             }
+
             // Проверяем, были ли удалены ссылки из радарной области
             $del = array_diff_key($oldRadar, $newRadar);
-            if (!empty($del)) {
+            if ($del !== []) {
                 $modifications = true;
                 if (!empty($diffText)) {
                     $diffText .= "\n";
                 }
+
                 $diffText .= "Удалённые ссылки из области радара\n";
                 foreach ($del as $k => $v) {
                     unset($oldRadar[$k]);
                     $diffText .= "$k\n";
                 }
             }
+
             // Проверяем, было ли изменено количество входящих ссылок из радарной области
             $diff = array_diff_assoc($newRadar, $oldRadar);
-            if (!empty($diff)) {
+            if ($diff !== []) {
                 $modifications = true;
                 if (!empty($diffText)) {
                     $diffText .= "\n";
                 }
+
                 $diffText .= "Изменено количество входящих ссылок на следующие страницы\n";
                 foreach ($diff as $k => $v) {
                     $diffText .= "$k - было ($oldRadar[$k]) стало ($newRadar[$k])\n";
                 }
             }
         }
+
         if ($modifications) {
             $radarLinksReport = '';
             $radarLinksSeoReport = '';
@@ -227,20 +192,69 @@ class Linking extends HandlerAbstract
                     $seoLinkString = "$key - $value (приоритет - {$config['seo_urls'][$key]})\n";
                     $radarLinksSeoReport .= $seoLinkString;
                 }
+
                 $radarLinksReport .= "$key - $value\n";
             }
+
             if ($radarLinksSeoReport) {
                 $radarLinksReport = "Ссылки с заданным приоритетом:\n$radarLinksSeoReport\nВсе ссылки:\n"
                     . $radarLinksReport;
             }
+
             if ($diffText) {
                 $radarLinksReport = "$diffText\n$radarLinksReport";
             }
+
             $notify->sendEmail($this->crawler->host . ' - перелинковка', $radarLinksReport);
         }
+
         $tmpRadar = $config['site_root'] . $config['tmp_radar_file'];
         if (file_exists($tmpRadar)) {
             unlink($tmpRadar);
+        }
+    }
+
+    /**
+     * Обработка полученных ссылок, добавление в массив отчёта о перелинковке
+     *
+     * @param array $radarLinks Массив ссылок на обработку
+     * @param string $current Текущая страница
+     */
+    private function addRadarLinks(array $radarLinks, string $current): void
+    {
+        $config = $this->crawler->getConfig();
+        $urlModel = new Url();
+
+        foreach ($radarLinks as $radarLink => $count) {
+            // Убираем анкоры без ссылок и js-код в ссылках
+            if (
+                str_starts_with($radarLink, '#')
+                || stripos($radarLink, 'javascript:') === 0
+            ) {
+                continue;
+            }
+
+            if ($urlModel->isExternalLink($radarLink, $current, $this->crawler->host)) {
+                // Пропускаем ссылки на другие сайты
+                continue;
+            }
+
+            // Абсолютизируем ссылку
+            $link = $urlModel->getAbsoluteUrl($config['website'], $radarLink, $current);
+
+            // Убираем лишние GET параметры из ссылки
+            $link = $urlModel->cutExcessGet($link, $config['disallow_key']);
+
+            if ($urlModel->skipUrl($link, $config['disallow_regexp'])) {
+                // Если ссылку не нужно добавлять, переходим к следующей
+                continue;
+            }
+
+            if (!isset($this->radarLinks[$link])) {
+                $this->radarLinks[$link] = $count;
+            } else {
+                $this->radarLinks[$link] += $count;
+            }
         }
     }
 }
