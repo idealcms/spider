@@ -8,8 +8,7 @@
 
 namespace Ideal\Spider;
 
-
-use Exception;
+use Ideal\Spider\Exception\MailTransportException;
 
 /**
  * Обходит все страницы сайта, в рамках указанных настроек
@@ -19,48 +18,50 @@ use Exception;
 class Crawler
 {
     /** @var array Массив проверенных ссылок */
-    public $checked = [];
+    public array $checked = [];
 
     /** @var array Массив для данных из конфига */
-    public $config = [];
+    public array $config = [];
 
     /** @var string Переменная содержащая адрес главной страницы сайта */
-    public $host;
+    public string $host;
 
-    /** @var  array Массив НЕпроверенных ссылок */
-    private $links = [];
+    /** @var array Массив НЕПРОВЕРЕННЫХ ссылок */
+    private array $links = [];
 
     /** @var array Массив внешних ссылок */
-    public $external = [];
+    public array $external = [];
 
     /** @var float Время начала работы скрипта */
-    private $start;
+    private float $start;
 
     /** @var bool Флаг необходимости сброса ранее собранных страниц */
-    private $clearTemp;
+    private bool $clearTemp;
 
     /** @var string Статус запуска скрипта. Варианты cron|test */
-    public $status = 'cron';
+    public string $status = 'cron';
 
     /** @var Url Класс для работы с html-страницей */
-    protected $urlModel;
+    protected Url $urlModel;
 
     /** @var Notify Класс для отправки уведомлений о работе карты сайта */
-    protected $notify;
+    protected Notify $notify;
 
     /** @var array Список предупреждений, формируемый при разборе страниц */
-    protected $warnings = [];
+    protected array $warnings = [];
 
-    protected $handlers;
+    protected array $handlers;
 
     /**
-     * Инициализация счетчика времени работы скрипта, вызов метода загрузки конфига,
-     * определение хоста, вызов методов проверки существования карты сайта и загрузки временных
+     * Инициализация счетчика времени работы скрипта, загрузка конфига,
+     * определение хоста, проверка наличия карты сайта и загрузки временных
      * данных (при их наличии), запуск метода основного цикла скрипта.
+     *
      * @param array $config Настройки сбора карты сайта
-     * @throws Exception
+     *
+     * @throws MailTransportException
      */
-    public function __construct($config, $isForce = false, $isClear = false, $isTest = false)
+    public function __construct(array $config, $isForce = false, $isClear = false, $isTest = false)
     {
         // Время начала работы скрипта
         $this->start = microtime(1);
@@ -70,31 +71,39 @@ class Crawler
 
         // Проверяем необходимость сброса ранее собранных страниц
         $this->clearTemp = $isClear;
+
         // Инициализируем модель для работы с html-страницей
         $this->urlModel = new Url();
+
         // Инициализируем объект для отправки сообщений
-        $this->notify = new Notify();
+        $this->notify = new Notify(
+            $config['mailer_dsn'],
+            $config['email_from'],
+            $config['email_notify'],
+            $config['email_json'],
+        );
+
         // Считываем настройки для создания карты сайта
         $this->loadConfig($config);
     }
 
     /**
      * Загрузка данных из конфига и из промежуточных файлов
-     * @throws Exception
+     * @throws MailTransportException
      */
-    public function loadData()
+    public function loadData(): void
     {
         // Установка максимального времени на загрузку страницы
         $this->urlModel->setLoadTimeout($this->config['load_timeout']);
 
         // Установка максимального количества редиректов при считывании страницы
-        $this->urlModel->setMaxRedirects($this->config['redirects']);
+        $this->urlModel->setMaxRedirects((int) $this->config['redirects']);
 
         // Загружаем данные, собранные на предыдущих шагах работы скрипта
         $tmpFile = $this->getTmpFileName();
 
         // Если существует файл хранения временных данных сканирования,
-        // Данные разбиваются на 3 массива: пройденных, непройденных и внешних ссылок
+        // Данные разбиваются на 3 массива: пройденных, не пройденных и внешних ссылок
         if (file_exists($tmpFile)) {
             $arr = file_get_contents($tmpFile);
             $arr = unserialize($arr, ['allowed_classes' => false]);
@@ -135,7 +144,7 @@ class Crawler
                     }
                     $this->addLinks($urls, $fileName);
                 } else {
-                    $this->warnings[] = 'Осутствует указанный файл со ссылками для добавления ' . $fileName;
+                    $this->warnings[] = 'Отсутствует указанный файл со ссылками для добавления ' . $fileName;
                 }
             }
         }
@@ -143,15 +152,17 @@ class Crawler
 
     /**
      * Загрузка конфига в переменную $this->config
+     *
      * @param $config
-     * @throws Exception
+     *
+     * @throws MailTransportException
      */
-    protected function loadConfig($config)
+    protected function loadConfig($config): void
     {
         // Проверяем наличие конфигурации
         if (empty($config)) {
-            // Конфигурационный файл нигде не нашли :(
-            $this->notify->stop('Configuration not set!');
+            // Конфигурационный файл нигде не нашли.
+            $this->stop('Configuration not set!');
         }
 
         $this->config = $config;
@@ -162,13 +173,12 @@ class Crawler
 
         $tmp = parse_url($this->config['website']);
 
-        $this->host = $tmp['host'];
-        $this->notify->setData($tmp['host'], $this->config['email_notify']);
-
         if (!isset($tmp['path'])) {
             $tmp['path'] = '/';
         }
         $this->config['website'] = $tmp['scheme'] . '://' . $tmp['host'] . $tmp['path'];
+
+        $this->host = $tmp['host'];
 
         // Вычисляем полный путь к корню сайта
         if (empty($this->config['site_root'])) {
@@ -176,14 +186,16 @@ class Crawler
             if ($vendorPos = strpos(__DIR__, '/vendor')) {
                 $this->config['site_root'] = substr(__DIR__, 0, $vendorPos);
             } else {
-                $this->notify->stop('Не могу определить корневую папку сайта, задайте её в настройках site_root');
+                $this->stop(
+                    'Не могу определить корневую папку сайта, задайте её в настройках site_root',
+                );
             }
         } else {
             $this->config['site_root'] = stream_resolve_include_path($this->config['site_root']);
         }
 
         // Массив значений по умолчанию
-        $default = array(
+        $default = [
             'script_timeout' => 60,
             'load_timeout' => 10,
             'delay' => 1,
@@ -204,7 +216,8 @@ class Crawler
             'disallow_img_regexp' => '',
             'seo_urls' => '',
             'is_radar' => '1',
-        );
+        ];
+
         foreach ($default as $key => $value) {
             if (!isset($this->config[$key])) {
                 $this->config[$key] = $value;
@@ -219,7 +232,7 @@ class Crawler
         // Строим массив страниц с изменённым приоритетом
         $this->config['seo_urls'] = explode("\n", $this->config['seo_urls']);
         $seo = [];
-        foreach ($this->config['seo_urls'] as $v => $k) {
+        foreach ($this->config['seo_urls'] as $k) {
             $a = explode('=', trim($k));
             $url = trim($a[0]);
             $priority = trim($a[1]);
@@ -235,27 +248,26 @@ class Crawler
 
     /**
      * Инициализация и получение имени файла для сохранения промежуточных данных по ссылкам
-     *
-     * @throws Exception
+     * @throws MailTransportException
      */
-    protected function getTmpFileName()
+    protected function getTmpFileName(): string
     {
         $tmpFile = $this->config['site_root'] . $this->config['tmp_file'];
         $tmpRadarFile = $this->config['site_root'] . $this->config['tmp_radar_file'];
 
         $tmpDir = dirname($tmpFile);
-        if (!file_exists($tmpDir)) {
-            mkdir($tmpDir, 0777, true);
+        if (!file_exists($tmpDir) && !mkdir($tmpDir, 0777, true) && !is_dir($tmpDir)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tmpDir));
         }
 
         $tmpRadarDir = dirname($tmpRadarFile);
-        if (!file_exists($tmpRadarDir)) {
-            mkdir($tmpRadarDir, 0777, true);
+        if (!file_exists($tmpRadarDir) && !mkdir($tmpRadarDir, 0777, true) && !is_dir($tmpRadarDir)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $tmpRadarDir));
         }
 
         if (file_exists($tmpFile)) {
             if (!is_writable($tmpFile)) {
-                $this->notify->stop("Временный файл {$tmpFile} недоступен для записи!");
+                $this->stop("Временный файл $tmpFile недоступен для записи!");
             }
 
             // Если промежуточный файл ссылок последний раз обновлялся более того количества часов назад,
@@ -267,7 +279,7 @@ class Crawler
             }
         } elseif ((file_put_contents($tmpFile, '') === false)) {
             // Файла нет и создать его не удалось
-            $this->notify->stop("Не удалось создать временный файл {$tmpFile} для карты сайта!");
+            $this->stop("Не удалось создать временный файл $tmpFile для карты сайта!");
         } else {
             unlink($tmpFile);
         }
@@ -278,7 +290,7 @@ class Crawler
     /**
      * Метод для сохранения распарсенных данных во временный файл
      */
-    protected function saveParsedUrls()
+    protected function saveParsedUrls(): void
     {
         $result = [$this->links, $this->checked, $this->external];
 
@@ -295,9 +307,9 @@ class Crawler
 
     /**
      * Метод основного цикла для сборки карты сайта и парсинга товаров
-     * @throws Exception
+     * @throws MailTransportException
      */
-    public function run()
+    public function run(): void
     {
         // Загружаем конфигурационные данные
         $this->loadData();
@@ -350,7 +362,7 @@ class Crawler
                 // Если мало ссылок на странице, значит что-то пошло не так и её нужно перечитать повторно
                 if (isset($broken[$k])) {
                     // Если и при повторном чтении не удалось получить нормальную страницу, то останавливаемся
-                    $this->notify->stop("Сбой при чтении страницы {$k}\nПолучен следующий контент:\n{$content}");
+                    $this->stop("Сбой при чтении страницы $k\nПолучен следующий контент:\n$content");
                 }
                 $value = $this->links[$k];
                 unset($this->links[$k]);
@@ -363,7 +375,7 @@ class Crawler
             // Добавляем текущую ссылку в массив пройденных ссылок
             $this->checked[$k] = 1;
 
-            // И удаляем из массива непройденных
+            // И удаляем из массива не пройденных
             unset($this->links[$k]);
 
             // Навешиваем свои классы-обработчики контента страницы (карта сайта, перелинковка, карта изображений)
@@ -384,14 +396,16 @@ class Crawler
 
             $message = "\nВыход по таймауту\n"
                 . 'Всего пройденных ссылок: ' . count($this->checked) . "\n"
-                . 'Всего непройденных ссылок: ' . count($this->links) . "\n"
+                . 'Всего не пройденных ссылок: ' . count($this->links) . "\n"
                 . 'Затраченное время: ' . ($time - $this->start) . "\n\n"
                 . "Everything it's alright.\n\n";
-            $this->notify->stop($message, false);
+            $this->stop($message, false);
         }
 
         if (count($this->checked) < 2) {
-            $this->notify->stop("Попытка записи в sitemap вместо списка ссылок:\n" . print_r($this->checked, true));
+            $this->stop(
+                "Попытка записи в sitemap вместо списка ссылок:\n" . print_r($this->checked, true),
+            );
         }
 
         // Сохраняем финальные данные дополнительных обработчиков
@@ -411,9 +425,8 @@ class Crawler
      *
      * @param array $urls Массив ссылок на обработку
      * @param string $current Текущая страница
-     * @throws Exception
      */
-    private function addLinks($urls, $current)
+    private function addLinks(array $urls, string $current): void
     {
         foreach ($urls as $url) {
             try {
@@ -422,7 +435,7 @@ class Crawler
                     // Пропускаем ссылки на другие сайты
                     continue;
                 }
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 // Произошла ошибка при определении внешняя ссылка или нет
                 $this->warnings[] = $e->getMessage();
                 continue;
@@ -450,28 +463,15 @@ class Crawler
 
     /**
      * Отправка уведомлений, если были ошибки при разборе страниц
+     * @throws MailTransportException
      */
     public function __destruct()
     {
         if (!empty($this->warnings)) {
             $this->notify->sendEmail(
+                $this->host . ' sitemap error',
                 implode("\n\n", $this->warnings),
-                '',
-                $this->host . ' sitemap error'
             );
-        }
-    }
-
-    /**
-     * Отправка письма с полным выводом скрипта на почту (для запуска через cron)
-     *
-     * @param $text
-     */
-    public function sendCron($text)
-    {
-        // Если нужно, отправляем письмо с выводом скрипта
-        if ($this->status === 'cron' && ($this->config['email_cron'] !== '')) {
-            $this->notify->sendEmail($text, $this->config['email_cron']);
         }
     }
 
@@ -480,7 +480,7 @@ class Crawler
      *
      * @return array
      */
-    public function getConfig()
+    public function getConfig(): array
     {
         return $this->config;
     }
@@ -490,8 +490,26 @@ class Crawler
      *
      * @return Notify
      */
-    public function getNotify()
+    public function getNotify(): Notify
     {
         return $this->notify;
+    }
+
+    /**
+     * Вывод сообщения и аварийное завершение работы скрипта
+     *
+     * @param string $message Сообщение для вывода
+     * @param bool $sendNotification Флаг обозначающий необходимость отправления сообщения перед остановкой скрипта
+     *
+     * @throws MailTransportException
+     * @throws \RuntimeException
+     */
+    public function stop(string $message, bool $sendNotification = true): void
+    {
+        if ($sendNotification) {
+            $this->getNotify()->sendEmail(($this->host ?? '') . ' sitemap error', $message);
+        }
+
+        throw new \RuntimeException($message);
     }
 }

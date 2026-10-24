@@ -10,6 +10,7 @@ namespace Ideal\Spider\Handler;
 
 
 use Exception;
+use Ideal\Spider\Exception\MailTransportException;
 
 /**
  * Построение xml-карты сайта на основе собранных основным скриптом страниц сайта
@@ -23,24 +24,23 @@ class SiteMap extends HandlerAbstract
      *
      * @throws Exception
      */
-    public function load()
+    public function load(): void
     {
         $config = $this->crawler->getConfig();
-        $notify = $this->crawler->getNotify();
 
         $xmlFile = $config['site_root'] . $config['sitemap_file'];
 
         // Проверяем существует ли файл и доступен ли он для чтения и записи
         if (file_exists($xmlFile)) {
             if (!is_readable($xmlFile)) {
-                $notify->stop("File {$xmlFile} is not readable!");
+                $this->crawler->stop("File $xmlFile is not readable!");
             }
             if (!is_writable($xmlFile)) {
-                $notify->stop("File {$xmlFile} is not writable!");
+                $this->crawler->stop("File $xmlFile is not writable!");
             }
         } else if ((file_put_contents($xmlFile, '') === false)) {
             // Файла нет и создать его не удалось
-            $notify->stop("Couldn't create file {$xmlFile}!");
+            $this->crawler->stop("Couldn't create file $xmlFile!");
         } else {
             // Удаляем пустой файл, т.к. пустого файла не должно быть
             unlink($xmlFile);
@@ -50,10 +50,10 @@ class SiteMap extends HandlerAbstract
         // Проверяем, обновлялась ли сегодня карта сайта
         if (date('d:m:Y', filemtime($xmlFile)) === date('d:m:Y')) {
             if ($this->crawler->status === 'cron') {
-                $notify->stop("Sitemap {$xmlFile} already created today! Everything it's alright.", false);
+                $this->crawler->stop("Sitemap $xmlFile already created today! Everything it's alright.", false);
             } else {
                 // Если дата сегодняшняя, но запуск не из крона, то продолжаем работу над картой сайта
-                echo "Warning! File {$xmlFile} have current date and skip in cron\n";
+                echo "Warning! File $xmlFile have current date and skip in cron\n";
             }
         } else {
             // Если карта сайта в два раза старше указанного значения в поле
@@ -67,25 +67,26 @@ class SiteMap extends HandlerAbstract
                 && time() - filemtime($xmlFile) > $existenceTimeFile
                 && time() - filemtime($tmpFile) > 43200) {
                 $msg = 'Карта сайта последний раз обновлялась более ' . $countHourForNotify . ' часов(а) назад.';
-                $notify->sendEmail($msg);
+                $this->crawler->getNotify()->sendEmail($this->crawler->host . ' sitemap', $msg);
             }
         }
     }
 
-    public function parse($url, $content)
+    public function parse($url, $content): void
     {
         // Тут делать ничего не надо, всё делает основной скрипт
     }
 
-    public function save()
+    public function save(): void
     {
         // Тут делать ничего не надо, всё делает основной скрипт
     }
 
     /**
      * Создание xml файла с картой сайта
+     * @throws MailTransportException|\JsonException
      */
-    public function finish()
+    public function finish(): void
     {
         $config = $this->crawler->getConfig();
 
@@ -122,11 +123,7 @@ class SiteMap extends HandlerAbstract
             }
             if (isset($config['priority'])) {
                 $priorityStr = sprintf('<priority>%s</priority>', '%01.1f');
-                if (isset($config['seo_urls'][$k])) {
-                    $priority = $config['seo_urls'][$k];
-                } else {
-                    $priority = $config['priority'];
-                }
+                $priority = $config['seo_urls'][$k] ?? $config['priority'];
                 $ret .= sprintf($priorityStr, $priority);
             }
             $ret .= "</url>\n";
@@ -134,11 +131,8 @@ class SiteMap extends HandlerAbstract
 
         $ret = /** @lang XML */
             '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
-            . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
-            . ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-            . ' xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9'
-            . ' https://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">' . "\n"
-            . "<!-- Last update of sitemap {$lastDate} -->\n"
+            . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
+            . "<!-- Last update of sitemap $lastDate -->\n"
             . $ret
             . '</urlset>';
 
@@ -155,14 +149,18 @@ class SiteMap extends HandlerAbstract
 
     /**
      * Поиск изменений в новой карте сайта и отчёте о перелинковке, относительно предыдущего результата
+     * @throws MailTransportException|\JsonException
      */
-    protected function compare()
+    protected function compare(): void
     {
         $config = $this->crawler->getConfig();
         
         // Карта сайта
         $file = $config['site_root'] . $config['old_sitemap'];
-        list($oldUrl, $oldExternal) = file_exists($file) ? unserialize(file_get_contents($file), ['allowed_classes' => false]) : [[], []];
+        [$oldUrl, $oldExternal] = file_exists($file)
+            ? unserialize(file_get_contents($file), ['allowed_classes' => false])
+            : [[], []]
+        ;
 
         $new = $this->crawler->checked;
         $external = $this->crawler->external;
@@ -213,7 +211,7 @@ class SiteMap extends HandlerAbstract
             $modifications = true;
             $text .= "\nДобавлены внешние ссылки(первичная генерация карты):\n";
             foreach ($external as $k => $v) {
-                $text .= "{$k} на странице {$v}\n";
+                $text .= "$k на странице $v\n";
             }
         } else {
             // Определяем новые внешние ссылки
@@ -222,7 +220,7 @@ class SiteMap extends HandlerAbstract
                 $modifications = true;
                 $text .= "\nДобавлены внешние ссылки:\n";
                 foreach ($addExternal as $k => $v) {
-                    $text .= "{$k} на странице {$v}\n";
+                    $text .= "$k на странице $v\n";
                 }
             } else {
                 $text .= "\nНет новых внешних ссылок\n";
@@ -233,7 +231,7 @@ class SiteMap extends HandlerAbstract
                 $modifications = true;
                 $text .= "\nУдалены внешние ссылки:\n";
                 foreach ($delExternal as $k => $v) {
-                    $text .= "{$k} на странице {$v}\n";
+                    $text .= "$k на странице $v\n";
                 }
             } else {
                 $text .= "\nНет удаленных внешних ссылок";
@@ -241,7 +239,7 @@ class SiteMap extends HandlerAbstract
         }
 
         $notify = $this->crawler->getNotify();
-        $notify->sendEmail($text);
+        $notify->sendEmail($this->crawler->host . ' sitemap', $text);
         if ($modifications && !empty($config['email_json'])) {
             // Формируем json формат данных для отправки на почту, хранящую информацию о работе карт сайта
             $log = array(
@@ -250,8 +248,7 @@ class SiteMap extends HandlerAbstract
                 'add_external' => $addExternal,
                 'del_external' => $delExternal,
             );
-            $log = json_encode($log);
-            $notify->sendEmail($log, $config['email_json'], $this->crawler->host . ' sitemap result');
+            $notify->sendJsonEmail($this->crawler->host . ' sitemap result', json_encode($log, JSON_THROW_ON_ERROR));
         }
     }
 }

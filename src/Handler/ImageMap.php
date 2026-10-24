@@ -8,7 +8,7 @@
 
 namespace Ideal\Spider\Handler;
 
-
+use Ideal\Spider\Exception\MailTransportException;
 use Ideal\Spider\Url;
 
 /**
@@ -19,10 +19,12 @@ use Ideal\Spider\Url;
 class ImageMap extends HandlerAbstract
 {
     /** @var array Список картинок на каждой странице сайта */
-    protected $images = [];
+    protected array $images = [];
 
-    /** @inheritDoc */
-    public function load()
+    /** @inheritDoc
+     * @throws MailTransportException
+     */
+    public function load(): void
     {
         $config = $this->crawler->getConfig();
 
@@ -31,12 +33,18 @@ class ImageMap extends HandlerAbstract
         // Если существует файл хранения временных данных отчёта о перелинковке
         if ($this->checkTmpFile($tmpFile)) {
             $arr = file_get_contents($tmpFile);
-            $this->images = unserialize($arr, ['allowed_classes' => false]);
+            if ($arr !== '') {
+                $images = unserialize($arr, ['allowed_classes' => false]);
+                if (!is_array($images)) {
+                    $this->crawler->stop('Не удалось получить временные данные по ссылкам на картинки.');
+                }
+                $this->images = $images ?: [];
+            }
         }
     }
 
     /** @inheritDoc */
-    public function parse($url, $content)
+    public function parse($url, $content): void
     {
         $config = $this->crawler->getConfig();
         $urlModel = new Url();
@@ -80,11 +88,11 @@ class ImageMap extends HandlerAbstract
     }
 
     /** @inheritDoc */
-    public function save()
+    public function save(): void
     {
         $config = $this->crawler->getConfig();
 
-        if (is_array($this->images) && count($this->images) > 0) {
+        if (count($this->images) > 0) {
             // Сохранение данных о собранных картинках во временный файл
             $result = serialize($this->images);
             $tmpFile = $config['site_root'] . $config['tmp_imagemap_file'];
@@ -93,7 +101,7 @@ class ImageMap extends HandlerAbstract
     }
 
     /** @inheritDoc */
-    public function finish()
+    public function finish(): void
     {
         $xml = '';
         foreach ($this->images as $url => $images) {

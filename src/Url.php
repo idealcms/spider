@@ -19,10 +19,10 @@ use RuntimeException;
 class Url
 {
     /** @var string Ссылка из мета-тега base, если он есть на странице */
-    private $base = '';
+    private string $base = '';
 
     /** @var array Массив параметров curl для получения заголовков и html кода страниц */
-    private $options = array(
+    private array $options = array(
         CURLOPT_RETURNTRANSFER => true, //  возвращать строку, а не выводить в браузере
         CURLOPT_VERBOSE => false, // вывод дополнительной информации (?)
         CURLOPT_HEADER => true, // включать заголовки в вывод
@@ -44,7 +44,7 @@ class Url
      * @return string Html-код страницы
      * @throws RuntimeException
      */
-    public function getUrl($k, $place)
+    public function getUrl(string $k, string $place): string
     {
         /**
          * // handle lastmod
@@ -83,7 +83,7 @@ class Url
 
         // Если страница недоступна прекращаем выполнение скрипта
         if ($info['http_code'] !== 200) {
-            throw new RuntimeException("Страница {$k} недоступна. Статус: {$info['http_code']}. Переход с {$place}");
+            throw new RuntimeException("Страница $k недоступна. Статус: {$info['http_code']}. Переход с $place");
         }
 
         // Если произошёл редирект, не превышающий заданное кол-во редиректов,
@@ -94,7 +94,7 @@ class Url
 
         // Если страница имеет слишком малый вес прекращаем выполнение скрипта
         if ($info['size_download'] < 1024) {
-            throw new RuntimeException("Страница {$k} пуста. Размер страницы: {$info['size_download']} байт. Переход с {$place}");
+            throw new RuntimeException("Страница $k пуста. Размер страницы: {$info['size_download']} байт. Переход с $place");
         }
 
         // Если размер страницы больше 3 МБ, то не анализируем контент
@@ -106,9 +106,8 @@ class Url
 
         curl_close($ch);
 
-        $res = mb_substr($res, $header_size); // вырезаем html код страницы
-
-        return $res;
+        // вырезаем html код страницы
+        return mb_substr($res, $header_size);
     }
 
     /**
@@ -119,7 +118,7 @@ class Url
      * @param string $current Текущая страница с которой получена ссылка
      * @return string  Возвращается абсолютная ссылка
      */
-    public function getAbsoluteUrl($website, $link, $current)
+    public function getAbsoluteUrl(string $website, string $link, string $current): string
     {
         // Закодированные амперсанды возвращаем к стандартному виду
         $link = str_replace('&amp;', '&', $link);
@@ -130,19 +129,19 @@ class Url
         $len = mb_strlen($link);
         if (($len > 1) && (mb_substr($link, -1) === ' ')) {
             // Если последний символ — пробел, то сообщаем об ошибке
-            throw new RuntimeException("На странице {$current} неправильная ссылка, оканчивающаяся на пробел: '{$link}'");
+            throw new RuntimeException("На странице $current неправильная ссылка, оканчивающаяся на пробел: '$link'");
         }
         if ($len > 1 && preg_match('/^\s/', $link)) {
             // Если ссылка начинается с пробельного символа, то сообщаем об ошибке
-            throw new RuntimeException("На странице {$current} неправильная ссылка, начинающаяся на пробел: '{$link}'");
+            throw new RuntimeException("На странице $current неправильная ссылка, начинающаяся на пробел: '$link'");
         }
 
         // Если ссылка начинается с '//', то добавляем к ней протокол
-        if (strpos($link, '//') === 0) {
+        if (str_starts_with($link, '//')) {
             $link = parse_url($website, PHP_URL_SCHEME) . ':' . $link;
         }
 
-        if (strpos($link, 'http') === 0) {
+        if (str_starts_with($link, 'http')) {
             // Если ссылка начинается с http, то абсолютизировать её не надо
             $url = parse_url($link);
             if (empty($url['path'])) {
@@ -167,14 +166,14 @@ class Url
             $dir = (mb_strlen($dir) === 1) ? '' : $dir;
 
             // Если ссылка начинается с "?"
-            if (strpos($link, '?') === 0) {
+            if (str_starts_with($link, '?')) {
                 // То обрабатываемая ссылка равна последней части текущей ссылки + сама ссылка
                 $link = basename($url['path']) . $link;
             }
         }
 
         // Если ссылка начинается со слэша
-        if (strpos($link, '/') === 0) {
+        if (str_starts_with($link, '/')) {
             // Обрезаем слэш
             $link = substr($link, 1);
             // Убираем промежуточный родительский элемент
@@ -182,11 +181,11 @@ class Url
         }
 
         // Если ссылка начинается с "./"
-        if (strpos($link, './') === 0) {
+        if (str_starts_with($link, './')) {
             $link = substr($link, 2);
         } else {
-            // До тех пор пока ссылка начинается с "../"
-            while (strpos($link, '../') === 0) {
+            // До тех пор, пока ссылка начинается с "../"
+            while (str_starts_with($link, '../')) {
                 // Обрезаем "../"
                 $link = substr($link, 3);
                 // Устанавливаем родительскую директорию равную текущей, но обрезая её с последнего "/"
@@ -197,11 +196,11 @@ class Url
         // Если задано base - добавляем его
         if ($this->base !== '') {
             // Если base начинается со слэша, то формирем полный адрес до корня сайта
-            if (strpos($this->base, '/') === 0) {
+            if (str_starts_with($this->base, '/')) {
                 $this->base = $url['scheme'] . '://' . $url['host'] . $this->base;
             }
             // Если base не оканчивается на слэш, то добавляем слэш справа
-            if (substr($this->base, -1) !== '/') {
+            if (!str_ends_with($this->base, '/')) {
                 $this->base .= '/';
             }
             return $this->base . $link;
@@ -215,19 +214,21 @@ class Url
      * Создание ссылки из частей
      *
      * @param array $parsedUrl Массив полученный из функции parse_url
+     *
      * @return string Возвращается ссылка, собранная из элементов массива
      */
-    public static function unparseUrl($parsedUrl)
+    public static function unparseUrl(array $parsedUrl): string
     {
         $scheme = isset($parsedUrl['scheme']) ? $parsedUrl['scheme'] . '://' : '';
-        $host = isset($parsedUrl['host']) ? $parsedUrl['host'] : '';
+        $host = $parsedUrl['host'] ?? '';
         $port = isset($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '';
-        $user = isset($parsedUrl['user']) ? $parsedUrl['user'] : '';
+        $user = $parsedUrl['user'] ?? '';
         $pass = isset($parsedUrl['pass']) ? ':' . $parsedUrl['pass'] : '';
         $pass = ($user || $pass) ? "$pass@" : '';
-        $path = isset($parsedUrl['path']) ? $parsedUrl['path'] : '';
+        $path = $parsedUrl['path'] ?? '';
         $query = isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '';
         $fragment = isset($parsedUrl['fragment']) ? '#' . $parsedUrl['fragment'] : '';
+
         return "$scheme$user$pass$host$port$path$query$fragment";
     }
 
@@ -236,7 +237,7 @@ class Url
      *
      * @param $loadTimeout
      */
-    public function setLoadTimeout($loadTimeout)
+    public function setLoadTimeout($loadTimeout): void
     {
         $this->options[CURLOPT_TIMEOUT] = $this->options[CURLOPT_CONNECTTIMEOUT] = $loadTimeout;
     }
@@ -247,19 +248,19 @@ class Url
      * @param string $content Обрабатываемая страницы
      * @return array Список полученных ссылок
      */
-    public function parseLinks(&$content)
+    public function parseLinks(string &$content): array
     {
         // Получение значения тега "base", если он есть
-        preg_match('/<.*base[\s]+href=["\'](.*)["\'].*>/i', $content, $base);
+        preg_match('/<.*base\s+href=["\'](.*)["\'].*>/i', $content, $base);
         if (isset($base[1])) {
             $this->base = $base[1];
         }
 
         // Удаляем некорректные UTF-8 символы, которые могут быть из-за криворуких программистов
-        $tmpContent = mb_convert_encoding($content, 'UTF-8', 'UTF-8');;
+        $tmpContent = mb_convert_encoding($content, 'UTF-8', 'UTF-8');
 
         // Удаление js-кода
-        $tmpContent = (string)preg_replace("/<script(.*)<\/script>/iusU", '', $tmpContent);
+        $tmpContent = (string) preg_replace("/<script(.*)<\/script>/iusU", '', $tmpContent);
 
         // Если контент был не в utf-8, то пытаемся конвертировать в нужную кодировку и повторяем замену
         if (!$tmpContent && preg_last_error() === PREG_BAD_UTF8_ERROR) {
@@ -276,9 +277,10 @@ class Url
      * Получение всех ссылок из html-кода
      *
      * @param string $text html-код для парсинга
+     *
      * @return array
      */
-    public function getLinksFromText($text)
+    public function getLinksFromText(string $text): array
     {
         // Получаем содержимое всех тегов <a>
         preg_match_all('/<a (.*)>/isU', $text, $urls);
@@ -302,7 +304,7 @@ class Url
                 // Не удалось получить ссылку, возможно она не в кавычках
                 $a = '/(\w+)(=[\'"])([^"\']*)([\'"])/';
                 $url = preg_replace($a, '', $url);
-                preg_match_all('/(\w+)=([^\S]+)/', $url, $attributes);
+                preg_match_all('/(\w+)=(\s+)/', $url, $attributes);
                 foreach ($attributes[1] as $key => $name) {
                     if ($name === 'href') {
                         $href = $attributes[2][$key];
@@ -310,7 +312,7 @@ class Url
                     }
                 }
             }
-            if (empty($href) || strpos($href, '#') === 0 || stripos($href, 'javascript:') === 0) {
+            if (empty($href) || str_starts_with($href, '#') || stripos($href, 'javascript:') === 0) {
                 // Убираем пустые анкоры, а также анкоры без ссылок и js-код в ссылках
                 continue;
             }
@@ -331,12 +333,12 @@ class Url
      * @param $disallowKeys
      * @return string Возвращается ссылка без лишних GET параметров и якорей
      */
-    public function cutExcessGet($url, $disallowKeys)
+    public function cutExcessGet(string $url, $disallowKeys): string
     {
         $paramStart = strpos($url, '?');
         // Если существуют GET параметры у ссылки - проверяем их
         if ($paramStart !== false) {
-            foreach ($disallowKeys as $id => $key) {
+            foreach ($disallowKeys as $key) {
                 if (empty($key)) {
                     continue;
                 }
@@ -363,15 +365,15 @@ class Url
             }
         }
         // Если в сслыке есть '#' якорь, то обрезаем его
-        if (strpos($url, '#') !== false) {
+        if (str_contains($url, '#')) {
             $url = substr($url, 0, strpos($url, '#'));
         }
         // Если последний символ в ссылке '&' - обрезаем его
-        while (substr($url, strlen($url) - 1) === "&") {
+        while (str_ends_with($url, "&")) {
             $url = rtrim($url, '&');
         }
         // Если последний символ в ссылке '?' - обрезаем его
-        while (substr($url, strlen($url) - 1) === "?") {
+        while (str_ends_with($url, "?")) {
             $url = rtrim($url, '?');
         }
         return $url;
@@ -379,11 +381,13 @@ class Url
 
     /**
      * Проверяем, нужно исключать этот URL или не надо
+     *
      * @param $filename
      * @param $disallowRegexp
+     *
      * @return bool
      */
-    public function skipUrl($filename, $disallowRegexp)
+    public function skipUrl($filename, $disallowRegexp): bool
     {
         if (is_array($disallowRegexp) && count($disallowRegexp) > 0) {
             // Проходимся по массиву регулярных выражений. Если array_reduce вернёт саму ссылку,
@@ -414,16 +418,17 @@ class Url
      * @param string $link Проверяемая ссылка
      * @param string $current Текущая страница с которой получена ссылка
      * @param string $host Домен, на котором проводится проверка
+     *
      * @return boolean true если ссылка внешняя, иначе false
      */
-    public function isExternalLink($link, $current, $host)
+    public function isExternalLink(string $link, string $current, string $host): bool
     {
         // Если ссылка на приложение - пропускаем её
         if (preg_match(',^(ftp://|mailto:|news:|javascript:|telnet:|callto:|tel:|skype:),i', $link)) {
             return true;
         }
 
-        if (strpos($link, 'http') !== 0 && strpos($link, '//') !== 0) {
+        if (!str_starts_with($link, 'http') && !str_starts_with($link, '//')) {
             // Если ссылка не начинается с http или '//', то она точно не внешняя, все варианты мы исключили
             return false;
         }
@@ -447,7 +452,7 @@ class Url
 
         if (str_replace('www.', '', $host) === str_replace('www.', '', $url['host'])) {
             // Хост сайта и хост ссылки не совпали, но с урезанием www совпали, значит неправильная ссылка
-            throw new RuntimeException("Неправильная абсолютная ссылка: {$link} на странице {$current}");
+            throw new RuntimeException("Неправильная абсолютная ссылка: $link на странице $current");
         }
 
         return true;
@@ -458,9 +463,8 @@ class Url
      *
      * @param int $redirects Максимальное кол-во редиректов
      */
-    public function setMaxRedirects($redirects)
+    public function setMaxRedirects(int $redirects): void
     {
-        $redirects = (int)$redirects;
         $this->options[CURLOPT_FOLLOWLOCATION] = $redirects !== 0;
         $this->options[CURLOPT_MAXREDIRS] = $redirects;
     }

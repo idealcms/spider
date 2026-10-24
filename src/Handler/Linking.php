@@ -9,6 +9,7 @@
 namespace Ideal\Spider\Handler;
 
 
+use Ideal\Spider\Exception\MailTransportException;
 use Ideal\Spider\Url;
 
 /**
@@ -23,12 +24,13 @@ use Ideal\Spider\Url;
 class Linking extends HandlerAbstract
 {
     /** @var array Массив ссылок из области отслеживаемой радаром с подсчётом количества */
-    private $radarLinks = [];
+    private array $radarLinks = [];
 
     /**
      * Проверка доступности временных файлов и времени последнего сохранения промежуточного файла ссылок
+     * @throws MailTransportException
      */
-    public function load()
+    public function load(): void
     {
         $config = $this->crawler->getConfig();
 
@@ -45,7 +47,7 @@ class Linking extends HandlerAbstract
         }
     }
 
-    public function parse($url, $content)
+    public function parse($url, $content): void
     {
         $config = $this->crawler->getConfig();
 
@@ -60,11 +62,11 @@ class Linking extends HandlerAbstract
         $this->addRadarLinks($radarLinks, $url);
     }
 
-    public function save()
+    public function save(): void
     {
         $config = $this->crawler->getConfig();
 
-        if ($config['is_radar'] && is_array($this->radarLinks) && count($this->radarLinks) > 0) {
+        if ($config['is_radar'] && count($this->radarLinks) > 0) {
             // Сохранение данных для отчёта о перелинковке во временный файл
             $result = serialize($this->radarLinks);
             $tmp_radar_file = $config['site_root'] . $config['tmp_radar_file'];
@@ -80,14 +82,17 @@ class Linking extends HandlerAbstract
      * @param array $radarLinks Массив ссылок на обработку
      * @param string $current Текущая страница
      */
-    private function addRadarLinks($radarLinks, $current)
+    private function addRadarLinks(array $radarLinks, string $current): void
     {
         $config = $this->crawler->getConfig();
         $urlModel = new Url();
 
         foreach ($radarLinks as $radarLink => $count) {
             // Убираем анкоры без ссылок и js-код в ссылках
-            if (strpos($radarLink, '#') === 0 || stripos($radarLink, 'javascript:') === 0) {
+            if (
+                str_starts_with($radarLink, '#')
+                || stripos($radarLink, 'javascript:') === 0
+            ) {
                 continue;
             }
 
@@ -119,9 +124,10 @@ class Linking extends HandlerAbstract
      * Парсинг ссылок из области радара
      *
      * @param string $content Обрабатываемая страницы
+     *
      * @return array Список полученных ссылок с количеством упоминания их в области радара
      */
-    public function parseRadarLinks($content)
+    public function parseRadarLinks(string $content): array
     {
         $urlModel = new Url();
         $radarLinks = [];
@@ -130,20 +136,21 @@ class Linking extends HandlerAbstract
 
         // Получаем области контента попадающие в радар
         preg_match_all("/<!--start_content-->(.*)<!--end_content-->/iusU", $content, $radarContent);
-        if ($radarContent && isset($radarContent[1]) && is_array($radarContent[1]) && !empty($radarContent[1])) {
+        if ($radarContent && isset($radarContent[1]) && is_array($radarContent[1])) {
             foreach ($radarContent[1] as $radarContentPart) {
                 $radarLinks[] = $urlModel->getLinksFromText($radarContentPart);
             }
             $radarLinks = array_merge(...$radarLinks);
         }
-        $radarLinks = array_count_values($radarLinks);
-        return $radarLinks;
+
+        return array_count_values($radarLinks);
     }
 
     /**
      * Поиск изменений в новой карте сайта и отчёте о перелинковке, относительно предыдущего результата
+     * @throws MailTransportException
      */
-    public function finish()
+    public function finish(): void
     {
         $config = $this->crawler->getConfig();
         $notify = $this->crawler->getNotify();
@@ -161,9 +168,8 @@ class Linking extends HandlerAbstract
 
         if (!$this->radarLinks) {
             $notify->sendEmail(
+                $this->crawler->host . ' - перелинковка',
                 'Отчёт о перелинковке не может быть составлен, возможно не установлен радар.',
-                '',
-                $this->crawler->host . ' - перелинковка'
             );
             return;
         }
@@ -184,7 +190,7 @@ class Linking extends HandlerAbstract
                 $diffText .= "Новые ссылки в области радара\n";
                 foreach ($add as $k => $v) {
                     unset($newRadar[$k]);
-                    $diffText .= "{$k} - {$v}\n";
+                    $diffText .= "$k - $v\n";
                 }
             }
             // Проверяем, были ли удалены ссылки из радарной области
@@ -197,7 +203,7 @@ class Linking extends HandlerAbstract
                 $diffText .= "Удалённые ссылки из области радара\n";
                 foreach ($del as $k => $v) {
                     unset($oldRadar[$k]);
-                    $diffText .= "{$k}\n";
+                    $diffText .= "$k\n";
                 }
             }
             // Проверяем, было ли изменено количество входящих ссылок из радарной области
@@ -209,7 +215,7 @@ class Linking extends HandlerAbstract
                 }
                 $diffText .= "Изменено количество входящих ссылок на следующие страницы\n";
                 foreach ($diff as $k => $v) {
-                    $diffText .= "{$k} - было ({$oldRadar[$k]}) стало ($newRadar[$k])\n";
+                    $diffText .= "$k - было ($oldRadar[$k]) стало ($newRadar[$k])\n";
                 }
             }
         }
@@ -218,19 +224,19 @@ class Linking extends HandlerAbstract
             $radarLinksSeoReport = '';
             foreach ($this->radarLinks as $key => $value) {
                 if (isset($this->config['seo_urls'][$key])) {
-                    $seoLinkString = "{$key} - {$value} (приоритет - {$config['seo_urls'][$key]})\n";
+                    $seoLinkString = "$key - $value (приоритет - {$config['seo_urls'][$key]})\n";
                     $radarLinksSeoReport .= $seoLinkString;
                 }
-                $radarLinksReport .= "{$key} - {$value}\n";
+                $radarLinksReport .= "$key - $value\n";
             }
             if ($radarLinksSeoReport) {
-                $radarLinksReport = "Ссылки с заданным приоритетом:\n{$radarLinksSeoReport}\nВсе ссылки:\n"
+                $radarLinksReport = "Ссылки с заданным приоритетом:\n$radarLinksSeoReport\nВсе ссылки:\n"
                     . $radarLinksReport;
             }
             if ($diffText) {
-                $radarLinksReport = "{$diffText}\n{$radarLinksReport}";
+                $radarLinksReport = "$diffText\n$radarLinksReport";
             }
-            $notify->sendEmail($radarLinksReport, '', $this->crawler->host . ' - перелинковка');
+            $notify->sendEmail($this->crawler->host . ' - перелинковка', $radarLinksReport);
         }
         $tmpRadar = $config['site_root'] . $config['tmp_radar_file'];
         if (file_exists($tmpRadar)) {

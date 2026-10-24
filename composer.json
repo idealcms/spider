@@ -17,13 +17,21 @@
             "Ideal\\Spider\\": "src/"
         }
     },
-
     "require": {
-        "php": ">=7.4",
+        "php": ">=8.5",
         "ext-curl": "*",
         "ext-iconv": "*",
         "ext-mbstring": "*",
         "ext-json": "*",
-        "idealcms/mailer": "*"
+        "symfony/mailer": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.4"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "tests": "vendor/bin/phpunit"
     }
 }

@@ -8,8 +8,10 @@
 
 namespace Ideal\Spider;
 
-
-use RuntimeException;
+use Ideal\Spider\Exception\MailTransportException;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mailer\Transport;
+use Symfony\Component\Mime\Email;
 
 /**
  * Отправка уведомлений об ошибках и об успешном завершении обхода сайта
@@ -18,51 +20,70 @@ use RuntimeException;
  */
 class Notify
 {
-    /** @var string Переменная содержащая адрес главной страницы сайта */
-    private $host;
+    private Mailer $mailer;
 
-    /** @var string Адрес для отправки писем по умолчанию */
-    private $emailNotify;
+    public function __construct(
 
-    public function setData($host, $emailNotify)
-    {
-        $this->host = $host;
-        $this->emailNotify = $emailNotify;
+        /** Настройки smtp-сервера для отправки сообщений */
+        string $mailerDsn,
+
+        /** Переменная содержащая адрес главной страницы сайта */
+        private readonly string $from,
+
+        /** @var string Адрес для отправки писем */
+        private readonly string $to,
+
+        /** @var null|string Адрес для отправки писем с json-данными */
+        private readonly ?string $toJson = null,
+
+    ) {
+        $this->mailer = new Mailer(Transport::fromDsn($mailerDsn));
     }
 
     /**
      * Функция отправки сообщение с отчетом о создании карты сайта
      *
-     * @param string $text Сообщение (отчет)
-     * @param string $to Email того, кому отправить письмо
      * @param string $subject Тема письма
+     * @param string $text Сообщение (отчет)
+     *
+     * @throws MailTransportException
      */
-    public function sendEmail($text, $to = '', $subject = '')
+    public function sendEmail(string $subject, string $text): void
     {
-        $from = 'sitemap@' . $this->host;
-        $to = (empty($to)) ? $this->emailNotify : $to;
-        $subject = (empty($subject)) ? $this->host . ' sitemap' : $subject;
-
         // Отправляем письма об изменениях
-        $sender = new \Ideal\Mailer();
-        $sender->setHtmlBody($text);
-        $sender->setSubj($subject);
-        $sender->sent($from, $to);
+        $this->send($this->to, $subject, $text);
     }
 
     /**
-     * Вывод сообщения и завершение работы скрипта
+     * Отправка json-сообщение с отчетом о создании карты сайта
      *
-     * @param string $message Сообщение для вывода
-     * @param bool $sendNotification Флаг обозначающий необходимость отправления сообщения перед остановкой скрипта
+     * @param string $subject Тема письма
+     * @param string $text Json-отчёт
      *
-     * @throws RuntimeException
+     * @throws MailTransportException
      */
-    public function stop($message, $sendNotification = true)
+    public function sendJsonEmail(string $subject, string $text): void
     {
-        if ($sendNotification) {
-            $this->sendEmail($message, '', $this->host . ' sitemap error');
+        // Отправляем письма об изменениях
+        $this->send($this->toJson, $subject, $text);
+    }
+
+    /**
+     * @throws MailTransportException
+     */
+    private function send(string $to, string $subject, string $text): void
+    {
+        $email = new Email()
+            ->from($this->from)
+            ->to($to)
+            ->subject($subject)
+            ->text($text)
+        ;
+
+        try {
+            $this->mailer->send($email);
+        } catch (\Throwable $e) {
+            throw new MailTransportException($e->getMessage(), $e->getCode(), $e);
         }
-        throw new RuntimeException($message);
     }
 }
